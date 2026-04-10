@@ -2,29 +2,60 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
-/* ── Bottle data — positioned across the hero ── */
+/* ── Bottle data with real product images from Amazon ── */
 const bottles = [
-  { name: "Evian", color: "#e84b8a", x: 6, y: 52, rotation: -18, scale: 0.9 },
-  { name: "Fiji", color: "#0099d8", x: 20, y: 64, rotation: 12, scale: 1 },
-  { name: "Gerolsteiner", color: "#006633", x: 38, y: 48, rotation: -8, scale: 0.85 },
-  { name: "Perrier", color: "#00693e", x: 56, y: 60, rotation: 15, scale: 1.05 },
-  { name: "Voss", color: "#8b9fad", x: 72, y: 50, rotation: -22, scale: 0.88 },
-  { name: "S.Pellegrino", color: "#cc0000", x: 88, y: 58, rotation: 10, scale: 0.92 },
+  {
+    name: "Evian",
+    slug: "evian",
+    image: "https://m.media-amazon.com/images/I/61rSQRSCIhL._AC_SL1500_.jpg",
+    x: 6, y: 48, rotation: -15, scale: 0.85,
+  },
+  {
+    name: "Fiji",
+    slug: "fiji",
+    image: "https://m.media-amazon.com/images/I/61l2q0W3a5L._AC_SL1500_.jpg",
+    x: 22, y: 60, rotation: 10, scale: 0.9,
+  },
+  {
+    name: "Gerolsteiner",
+    slug: "gerolsteiner",
+    image: "https://m.media-amazon.com/images/I/61CkN1RqcrL._AC_SL1500_.jpg",
+    x: 40, y: 45, rotation: -8, scale: 0.8,
+  },
+  {
+    name: "Perrier",
+    slug: "perrier",
+    image: "https://m.media-amazon.com/images/I/71AW4q2E9cL._AC_SL1500_.jpg",
+    x: 58, y: 58, rotation: 12, scale: 0.88,
+  },
+  {
+    name: "Voss",
+    slug: "voss",
+    image: "https://m.media-amazon.com/images/I/51A4s+NZBGL._AC_SL1500_.jpg",
+    x: 74, y: 46, rotation: -20, scale: 0.82,
+  },
+  {
+    name: "S.Pellegrino",
+    slug: "san-pellegrino",
+    image: "https://m.media-amazon.com/images/I/71QBEbpuiNL._AC_SL1500_.jpg",
+    x: 88, y: 55, rotation: 8, scale: 0.85,
+  },
 ];
 
-const CYCLE_DURATION = 3000; // ms each bottle stays visible
-const FADE_DURATION = 800; // ms for fade transition
+const CYCLE_MS = 3200;
+const FADE_MS = 900;
 
-/* ── SVG Water Bottle ── */
-function WaterBottle({
+/* ── Floating Bottle with real image ── */
+function FloatingBottle({
   name,
-  color,
+  image,
   style,
   opacity,
 }: {
   name: string;
-  color: string;
+  image: string;
   style: React.CSSProperties;
   opacity: number;
 }) {
@@ -34,29 +65,18 @@ function WaterBottle({
       style={{
         ...style,
         opacity,
-        transition: `opacity ${FADE_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+        transition: `opacity ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
+        filter: "drop-shadow(0 8px 25px rgba(0,0,0,0.4))",
       }}
     >
-      <svg
-        width="44"
-        height="130"
-        viewBox="0 0 44 130"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        className="drop-shadow-[0_6px_20px_rgba(0,0,0,0.4)]"
-        aria-label={`${name} bottle`}
-      >
-        <rect x="15" y="0" width="14" height="10" rx="3" fill={color} />
-        <rect x="17" y="10" width="10" height="16" rx="2" fill="rgba(255,255,255,0.9)" />
-        <rect x="6" y="26" width="32" height="86" rx="6" fill="rgba(255,255,255,0.8)" />
-        <rect x="8" y="44" width="28" height="32" rx="3" fill={color} opacity="0.9" />
-        <text x="22" y="64" textAnchor="middle" fill="white" fontSize="6.5" fontWeight="700" fontFamily="system-ui">
-          {name.length > 10 ? name.slice(0, 10) : name}
-        </text>
-        <rect x="8" y="80" width="28" height="30" rx="0" fill="rgba(100,200,255,0.25)" />
-        <rect x="6" y="110" width="32" height="4" rx="2" fill="rgba(255,255,255,0.5)" />
-        <rect x="12" y="30" width="3" height="45" rx="1.5" fill="rgba(255,255,255,0.3)" />
-      </svg>
+      <Image
+        src={image}
+        alt={`${name} water bottle`}
+        width={80}
+        height={200}
+        className="object-contain max-h-[160px] sm:max-h-[200px]"
+        unoptimized
+      />
     </div>
   );
 }
@@ -68,8 +88,9 @@ export function OceanHeroSection() {
     bottles.map((_, i) => (i === 0 ? 1 : 0))
   );
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoLoaded, setVideoLoaded] = useState(false);
 
-  // Sequential bottle fade in/out
+  // Sequential bottle phase-in / phase-out
   useEffect(() => {
     let current = 0;
 
@@ -81,6 +102,7 @@ export function OceanHeroSection() {
         return next;
       });
 
+      // After fade-out completes, advance and fade in next
       setTimeout(() => {
         current = (current + 1) % bottles.length;
         setActiveIndex(current);
@@ -89,8 +111,8 @@ export function OceanHeroSection() {
           next[current] = 1;
           return next;
         });
-      }, FADE_DURATION);
-    }, CYCLE_DURATION);
+      }, FADE_MS);
+    }, CYCLE_MS);
 
     return () => clearInterval(interval);
   }, []);
@@ -105,54 +127,48 @@ export function OceanHeroSection() {
         muted
         playsInline
         preload="auto"
-        className="absolute inset-0 w-full h-full object-cover"
-        poster="/images/ocean-poster.jpg"
+        onLoadedData={() => setVideoLoaded(true)}
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
+          videoLoaded ? "opacity-100" : "opacity-0"
+        }`}
       >
-        {/* WebM for smaller file size where supported */}
-        <source src="/videos/ocean-hero.webm" type="video/webm" />
-        {/* MP4 fallback */}
         <source src="/videos/ocean-hero.mp4" type="video/mp4" />
       </video>
 
-      {/* ── Gradient fallback if video fails ── */}
+      {/* ── Gradient fallback (always visible behind video) ── */}
       <div
         className="absolute inset-0"
         style={{
           background: `linear-gradient(180deg,
-            #6CB4EE 0%,
-            #4A9FDE 20%,
-            #1E7FBF 40%,
-            #0d6eaa 50%,
-            #095d94 60%,
-            #074d7d 70%,
-            #053d66 80%,
-            #032d4f 100%)`,
-          zIndex: -1,
+            #87CEEB 0%,
+            #5BB8E6 18%,
+            #2E9BD6 35%,
+            #1a8ac4 48%,
+            #0d7ab3 55%,
+            #0a6fa6 62%,
+            #085d8e 72%,
+            #064d78 82%,
+            #043d62 92%,
+            #022d4f 100%)`,
         }}
       />
 
-      {/* ── Color overlay for text readability ── */}
+      {/* ── Overlays for text readability ── */}
       <div
-        className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/40"
-        style={{ zIndex: 1 }}
-      />
-
-      {/* ── Underwater tint on bottom half ── */}
-      <div
-        className="absolute inset-x-0 bottom-0 h-[55%]"
+        className="absolute inset-0"
         style={{
-          background: "linear-gradient(to bottom, transparent, rgba(2, 40, 70, 0.3))",
-          zIndex: 1,
+          background: "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, transparent 40%, rgba(2,30,50,0.3) 100%)",
+          zIndex: 2,
         }}
       />
 
       {/* ── Floating bottles ── */}
       <div className="absolute inset-0" style={{ zIndex: 5 }} aria-hidden="true">
         {bottles.map((bottle, i) => (
-          <WaterBottle
+          <FloatingBottle
             key={bottle.name}
             name={bottle.name}
-            color={bottle.color}
+            image={bottle.image}
             opacity={opacities[i]}
             style={{
               left: `${bottle.x}%`,
@@ -193,13 +209,13 @@ export function OceanHeroSection() {
           Track your hydration. Discover what&apos;s in every bottle.
         </p>
 
-        {/* Active bottle indicator */}
+        {/* Active bottle name */}
         <div className="mt-4 h-6 overflow-hidden">
           <span
-            className="text-sm font-medium tracking-[0.2em] uppercase text-white/40"
+            className="text-sm font-medium tracking-[0.2em] uppercase text-white/50"
             style={{
               opacity: opacities[activeIndex],
-              transition: `opacity ${FADE_DURATION}ms ease`,
+              transition: `opacity ${FADE_MS}ms ease`,
             }}
           >
             {bottles[activeIndex].name}
@@ -223,7 +239,7 @@ export function OceanHeroSection() {
         </div>
       </div>
 
-      {/* ── Bottom fade to page ── */}
+      {/* ── Bottom fade ── */}
       <div
         className="absolute bottom-0 left-0 right-0 h-32"
         style={{
