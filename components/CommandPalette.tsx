@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  Command,
   CommandDialog,
   CommandInput,
   CommandList,
@@ -63,27 +64,29 @@ export function CommandPalette() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Search brands, minerals, articles..." />
-      <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
-        <CommandGroup heading="Pages">
-          {quickLinks.map((link) => {
-            const Icon = link.icon;
-            return (
-              <CommandItem
-                key={link.href}
-                onSelect={() => {
-                  router.push(link.href);
-                  setOpen(false);
-                }}
-              >
-                <Icon className="size-4 mr-2" />
-                {link.label}
-              </CommandItem>
-            );
-          })}
-        </CommandGroup>
-      </CommandList>
+      <Command>
+        <CommandInput placeholder="Search brands, minerals, articles..." />
+        <CommandList>
+          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandGroup heading="Pages">
+            {quickLinks.map((link) => {
+              const Icon = link.icon;
+              return (
+                <CommandItem
+                  key={link.href}
+                  onSelect={() => {
+                    router.push(link.href);
+                    setOpen(false);
+                  }}
+                >
+                  <Icon className="size-4 mr-2" />
+                  {link.label}
+                </CommandItem>
+              );
+            })}
+          </CommandGroup>
+        </CommandList>
+      </Command>
     </CommandDialog>
   );
 }

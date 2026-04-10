@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Droplets, Menu, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Droplets, Menu, X, LogOut } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 const navLinks = [
   { label: "Brands", href: "/brands" },
@@ -14,12 +17,27 @@ const navLinks = [
 export function Header() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const router = useRouter();
+  const supabase = createClient();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+
+    // Check auth state
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      subscription.unsubscribe();
+    };
+  }, [supabase.auth]);
 
   return (
     <header
@@ -56,12 +74,27 @@ export function Header() {
             <span className="text-xs">Ctrl</span>K
           </kbd>
 
-          <Link
-            href="/login"
-            className="text-sm font-medium hover:text-primary transition-colors"
-          >
-            Sign In
-          </Link>
+          {user ? (
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                setUser(null);
+                router.push("/");
+                router.refresh();
+              }}
+              className="flex items-center gap-1.5 text-sm font-medium hover:text-primary transition-colors"
+            >
+              <LogOut className="size-4" />
+              Sign Out
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="text-sm font-medium hover:text-primary transition-colors"
+            >
+              Sign In
+            </Link>
+          )}
 
           {/* Mobile hamburger */}
           <button

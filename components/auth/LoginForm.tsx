@@ -40,7 +40,7 @@ export function LoginForm() {
       return;
     }
 
-    router.push("/tracker");
+    router.push("/");
     router.refresh();
   }
 
