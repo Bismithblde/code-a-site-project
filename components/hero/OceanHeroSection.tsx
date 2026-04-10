@@ -88,7 +88,6 @@ export function OceanHeroSection() {
     bottles.map((_, i) => (i === 0 ? 1 : 0))
   );
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [videoLoaded, setVideoLoaded] = useState(false);
 
   // Force video play — handles autoplay policy in all browsers
   useEffect(() => {
@@ -154,10 +153,8 @@ export function OceanHeroSection() {
         muted
         playsInline
         preload="auto"
-        onLoadedData={() => setVideoLoaded(true)}
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
-          videoLoaded ? "opacity-100" : "opacity-0"
-        }`}
+        className="absolute inset-0 w-full h-full object-cover"
+        style={{ zIndex: 1 }}
       >
         <source src="/videos/ocean-hero.mp4" type="video/mp4" />
       </video>
