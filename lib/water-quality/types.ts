@@ -38,6 +38,8 @@ export type WaterSample = {
   locationNormalized: string;
   sampleSiteNormalized: string;
   sampleClassNormalized: string;
+  latitude: number | null;
+  longitude: number | null;
   residualFreeChlorine: NumericMeasurement;
   turbidity: NumericMeasurement;
   fluoride: NumericMeasurement;
@@ -67,6 +69,8 @@ export type NumericRangeFilter = {
 export type WaterSampleFilters = {
   sampleSite?: string;
   locationText?: string;
+  zip?: string;
+  limit?: number;
   sampleClass?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -92,6 +96,41 @@ export type QueryResult<T> = {
   sortBy: string;
   sortDir: "asc" | "desc";
   nearestMatches: NearestMatch[];
+};
+
+export type GeoPoint = {
+  latitude: number;
+  longitude: number;
+};
+
+export type NearbySummary = {
+  sampleCount: number;
+  nearestDistanceMiles: number | null;
+  overall: "normal" | "review" | "alert" | "unknown";
+  bacteria: "not_detected" | "coliform_detected" | "e_coli_detected" | "unknown";
+  clarity: "normal" | "review" | "unknown";
+  disinfection: "normal" | "low_review" | "high_alert" | "unknown";
+};
+
+export type NearbyWaterSample = WaterSample & {
+  distanceMiles: number;
+};
+
+export type NearbyQueryResult = {
+  data: NearbyWaterSample[];
+  meta: {
+    zip: string;
+    origin: GeoPoint;
+    count: number;
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+    sortBy: "distanceMiles";
+    sortDir: "asc";
+    nearestMatches: NearestMatch[];
+  };
+  nearbySummary: NearbySummary;
 };
 
 export type HealthSummary = {

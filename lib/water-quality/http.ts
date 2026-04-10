@@ -79,10 +79,13 @@ export function parseSampleFilters(searchParams: URLSearchParams): WaterSampleFi
   }, {});
 
   const pageSize = parseOptionalNumber(searchParams.get("pageSize"));
+  const limit = parseOptionalNumber(searchParams.get("limit"));
 
   return {
     sampleSite: searchParams.get("sampleSite") ?? undefined,
     locationText: searchParams.get("location") ?? undefined,
+    zip: searchParams.get("zip") ?? undefined,
+    limit,
     sampleClass: searchParams.get("sampleClass") ?? undefined,
     dateFrom: searchParams.get("dateFrom") ?? undefined,
     dateTo: searchParams.get("dateTo") ?? undefined,

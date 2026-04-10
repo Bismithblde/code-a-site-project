@@ -1,0 +1,22 @@
+[
+  { "zip": "10001", "latitude": 40.7506, "longitude": -73.9972 },
+  { "zip": "10025", "latitude": 40.7999, "longitude": -73.9680 },
+  { "zip": "10461", "latitude": 40.8463, "longitude": -73.8410 },
+  { "zip": "11101", "latitude": 40.7447, "longitude": -73.9485 },
+  { "zip": "11201", "latitude": 40.6943, "longitude": -73.9928 },
+  { "zip": "11215", "latitude": 40.6681, "longitude": -73.9850 },
+  { "zip": "11354", "latitude": 40.7685, "longitude": -73.8271 },
+  { "zip": "11355", "latitude": 40.7525, "longitude": -73.8190 },
+  { "zip": "11356", "latitude": 40.7851, "longitude": -73.8460 },
+  { "zip": "11357", "latitude": 40.7860, "longitude": -73.8092 },
+  { "zip": "11358", "latitude": 40.7603, "longitude": -73.7966 },
+  { "zip": "11360", "latitude": 40.7801, "longitude": -73.7806 },
+  { "zip": "11361", "latitude": 40.7641, "longitude": -73.7746 },
+  { "zip": "11362", "latitude": 40.7585, "longitude": -73.7334 },
+  { "zip": "11364", "latitude": 40.7441, "longitude": -73.7604 },
+  { "zip": "11411", "latitude": 40.6956, "longitude": -73.7362 },
+  { "zip": "11423", "latitude": 40.7132, "longitude": -73.7687 },
+  { "zip": "11427", "latitude": 40.7287, "longitude": -73.7489 },
+  { "zip": "11428", "latitude": 40.7215, "longitude": -73.7425 },
+  { "zip": "11432", "latitude": 40.7148, "longitude": -73.7939 }
+]

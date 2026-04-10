@@ -218,6 +218,8 @@ export function normalizeWaterSample(
     locationNormalized: normalizeText(location),
     sampleSiteNormalized: normalizeText(sampleSite),
     sampleClassNormalized: normalizeText(sampleClass),
+    latitude: null,
+    longitude: null,
     residualFreeChlorine: parseNumericMeasurement(
       row[SOURCE_COLUMNS.residualFreeChlorine],
       SOURCE_COLUMNS.residualFreeChlorine,

@@ -3,6 +3,12 @@ import {
   MAX_PAGE_SIZE,
   NUMERIC_FIELDS,
 } from "./constants";
+import {
+  calculateDistanceMiles,
+  hasCoordinates,
+  roundDistanceMiles,
+  summarizeNearbySamples,
+} from "./geo";
 import { findNearestTextMatches } from "./match";
 import { normalizeText } from "./normalize";
 import {
@@ -10,7 +16,10 @@ import {
   getHealthSummaryForSample,
   summarizeSamples,
 } from "./summary";
+import { resolveZipCodeOrigin } from "./zip";
 import type {
+  NearbyQueryResult,
+  NearbyWaterSample,
   NumericFieldKey,
   NearestMatch,
   QueryResult,
@@ -39,6 +48,14 @@ function coercePageSize(value: number | undefined) {
   }
 
   return Math.min(Math.floor(value), MAX_PAGE_SIZE);
+}
+
+function coerceNearestLimit(value: number | undefined) {
+  if (!value || Number.isNaN(value) || value < 1) {
+    return 5;
+  }
+
+  return Math.min(Math.floor(value), 25);
 }
 
 function compareNullableStrings(left: string | null, right: string | null) {
@@ -254,6 +271,29 @@ export async function getSampleByNumber(sampleNumber: string) {
   return dataset.bySampleNumber.get(sampleNumber) ?? null;
 }
 
+export function findNearestSamplesFromOrigin(
+  samples: WaterSample[],
+  latitude: number,
+  longitude: number,
+  limit = 5,
+) {
+  const origin = { latitude, longitude };
+  const nearestLimit = coerceNearestLimit(limit);
+
+  return samples
+    .filter(hasCoordinates)
+    .map<NearbyWaterSample>((sample) => ({
+      ...sample,
+      distanceMiles: calculateDistanceMiles(origin, sample),
+    }))
+    .sort(
+      (left, right) =>
+        left.distanceMiles - right.distanceMiles ||
+        (left.sampleNumber ?? left.id).localeCompare(right.sampleNumber ?? right.id),
+    )
+    .slice(0, nearestLimit);
+}
+
 export async function querySamples(
   filters: WaterSampleFilters,
 ): Promise<QueryResult<WaterSample>> {
@@ -282,6 +322,39 @@ export async function querySamples(
   };
 }
 
+export async function querySamplesByZip(
+  filters: WaterSampleFilters,
+): Promise<NearbyQueryResult> {
+  const origin = resolveZipCodeOrigin(filters.zip);
+  const dataset = await loadWaterDataset();
+  const nearestSamples = findNearestSamplesFromOrigin(
+    dataset.records,
+    origin.latitude,
+    origin.longitude,
+    filters.limit,
+  );
+
+  return {
+    data: nearestSamples,
+    meta: {
+      zip: origin.zip,
+      origin: {
+        latitude: origin.latitude,
+        longitude: origin.longitude,
+      },
+      count: nearestSamples.length,
+      total: nearestSamples.length,
+      page: 1,
+      pageSize: nearestSamples.length,
+      totalPages: nearestSamples.length > 0 ? 1 : 0,
+      sortBy: "distanceMiles",
+      sortDir: "asc",
+      nearestMatches: [],
+    },
+    nearbySummary: summarizeNearbySamples(nearestSamples),
+  };
+}
+
 export async function getRecentSamples(limit = 10) {
   const dataset = await loadWaterDataset();
   return sortSamples(dataset.records, "sampleDate", "desc").slice(0, limit);
@@ -296,9 +369,11 @@ export async function getSummary(
   return summarizeSamples(dataset.records, filtered);
 }
 
-export function serializeSample(sample: WaterSample) {
+export function serializeSample(sample: WaterSample | NearbyWaterSample) {
   return {
     ...sample,
+    distanceMiles:
+      "distanceMiles" in sample ? roundDistanceMiles(sample.distanceMiles) : undefined,
     summary: getComputedSummaryForSample(sample),
     healthSummary: getHealthSummaryForSample(sample),
   };
