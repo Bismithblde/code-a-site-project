@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { profileUpdateSchema } from "@/lib/validations";
+import { rateLimit } from "@/lib/rate-limit";
 
 // GET /api/user/profile — fetch the current user's profile
 export async function GET() {
@@ -52,6 +53,18 @@ export async function PUT(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit: 10 requests per minute per user
+  const { allowed, retryAfterMs } = rateLimit(`profile-put:${user.id}`, {
+    limit: 10,
+    windowMs: 60 * 1000,
+  });
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+    );
   }
 
   let body: unknown;

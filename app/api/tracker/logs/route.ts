@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { hydrationEntrySchema } from "@/lib/validations";
+import { rateLimit } from "@/lib/rate-limit";
 import { z } from "zod";
 
 // GET /api/tracker/logs — fetch hydration entries for the current user
@@ -60,6 +61,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Rate limit: 60 requests per minute per user
+  const { allowed, retryAfterMs } = rateLimit(`tracker-post:${user.id}`, {
+    limit: 60,
+    windowMs: 60 * 1000,
+  });
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -115,6 +128,18 @@ export async function DELETE(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit: 60 requests per minute per user
+  const { allowed, retryAfterMs } = rateLimit(`tracker-delete:${user.id}`, {
+    limit: 60,
+    windowMs: 60 * 1000,
+  });
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many requests" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } }
+    );
   }
 
   const { searchParams } = new URL(request.url);
