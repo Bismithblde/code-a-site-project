@@ -6,6 +6,7 @@ import { CountUp } from "@/components/animation/CountUp";
 import { WaveDivider } from "@/components/animation/WaveDivider";
 import { FloatingBubbles } from "@/components/animation/FloatingBubbles";
 import Link from "next/link";
+import { AffiliateButton } from "@/components/AffiliateButton";
 import type { Brand } from "@/lib/types";
 import type { Metadata } from "next";
 
@@ -92,7 +93,6 @@ export default async function BrandDetailPage({
   }
 
   const b = brand as Brand;
-  const amazonUrl = `https://www.amazon.com/dp/${b.amazon_asin}?tag=mineralwater-20`;
 
   return (
     <>
@@ -251,14 +251,7 @@ export default async function BrandDetailPage({
           <p className="text-muted-foreground mb-6">
             Available on Amazon with free shipping for Prime members.
           </p>
-          <a
-            href={amazonUrl}
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            className="inline-block px-8 py-4 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition"
-          >
-            Buy on Amazon &middot; {b.price_range}
-          </a>
+          <AffiliateButton brandSlug={b.slug} priceRange={b.price_range} />
           <p className="text-xs text-muted-foreground mt-3">
             As an Amazon Associate we earn from qualifying purchases.
           </p>
