@@ -13,8 +13,8 @@ Build a content-driven website focused on mineral water education, brand reviews
 | Framework | **Next.js (App Router)** | SSG/ISR for SEO, React ecosystem, API routes built-in |
 | Styling | **Tailwind CSS + shadcn/ui** | Fast, consistent, professional design |
 | Content | **MDX files** | Easy to write/edit reviews without a CMS, supports rich components |
-| Database | **MongoDB (via Mongoose)** | Flexible document model, great for user data + hydration logs |
-| Auth | **NextAuth.js (Auth.js v5)** | Supports email/password, Google, GitHub OAuth — session management built-in |
+| Database | **Supabase (PostgreSQL + Auth + RLS)** | Managed Postgres with Row Level Security, built-in auth, real-time, free tier |
+| Auth | **Supabase Auth** | Built-in email/password, Google OAuth, email verification, password reset, JWT sessions |
 | Scroll & Animation | **Motion (v11+)** + **GSAP + ScrollTrigger** | Scroll reveals, parallax, pinned sequences — both free/MIT |
 | Smooth Scroll | **Lenis** | ~4KB butter-smooth scroll normalizer, pairs with Motion/GSAP |
 | 3D Ocean Effects | **React Three Fiber + drei** | Realistic water shader for hero, lazy-loaded (`ssr: false`) |
@@ -199,96 +199,102 @@ Driven by Motion's `useScroll` + `useTransform` on each layer.
 
 ---
 
-## Data Model
+## Data Model (Supabase PostgreSQL)
 
-### Mineral (MongoDB `minerals` collection — seeded from JSON)
-```json
-{
-  "_id": "ObjectId",
-  "slug": "magnesium",
-  "name": "Magnesium",
-  "symbol": "Mg",
-  "unit": "mg/L",
-  "dailyValue": 420,
-  "benefits": ["Muscle function", "Sleep quality", "Bone health"],
-  "highThreshold": 50,
-  "lowThreshold": 10
-}
+### `minerals` table (seeded from JSON)
+```sql
+create table minerals (
+  id uuid default gen_random_uuid() primary key,
+  slug text unique not null,
+  name text not null,
+  symbol text not null,
+  unit text default 'mg/L',
+  daily_value numeric not null,
+  benefits text[] not null default '{}',
+  high_threshold numeric not null,
+  low_threshold numeric not null
+);
+-- RLS: public read, no public write
+alter table minerals enable row level security;
+create policy "Minerals are publicly readable" on minerals for select using (true);
 ```
 
-### User (MongoDB `users` collection)
-```json
-{
-  "_id": "ObjectId",
-  "email": "user@example.com",
-  "name": "John",
-  "passwordHash": "$2b$10$...",
-  "provider": "credentials",
-  "emailVerified": false,
-  "emailVerificationToken": "<hashed-token>",
-  "emailVerificationExpires": "2026-04-11T00:00:00Z",
-  "passwordResetToken": "<hashed-token>",
-  "passwordResetExpires": "2026-04-10T01:00:00Z",
-  "failedLoginAttempts": 0,
-  "lockUntil": null,
-  "lastLoginAt": "2026-04-10T08:00:00Z",
-  "profile": {
-    "weight": 75,
-    "unit": "kg",
-    "activityLevel": "active",
-    "climate": "hot",
-    "dailyGoal": 3000,
-    "wakeTime": "07:00",
-    "reminderInterval": 60
-  },
-  "createdAt": "2026-04-10T00:00:00Z",
-  "updatedAt": "2026-04-10T00:00:00Z"
-}
+### `profiles` table (extends Supabase `auth.users`)
+```sql
+create table profiles (
+  id uuid references auth.users(id) on delete cascade primary key,
+  name text not null default '',
+  weight numeric default 70,
+  unit text default 'kg' check (unit in ('kg', 'lbs')),
+  activity_level text default 'moderate'
+    check (activity_level in ('sedentary', 'light', 'moderate', 'active', 'very-active')),
+  climate text default 'temperate'
+    check (climate in ('cold', 'temperate', 'hot', 'humid')),
+  daily_goal integer default 2500,
+  wake_time text default '07:00',
+  reminder_interval integer default 60,
+  failed_login_attempts integer default 0,
+  lock_until timestamptz,
+  last_login_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+-- RLS: users can only read/update their own profile
+alter table profiles enable row level security;
+create policy "Users can view own profile" on profiles for select using (auth.uid() = id);
+create policy "Users can update own profile" on profiles for update using (auth.uid() = id);
 ```
 
-### Hydration Log (MongoDB `hydration_logs` collection)
-```json
-{
-  "_id": "ObjectId",
-  "userId": "ObjectId",
-  "date": "2026-04-10",
-  "goal": 3000,
-  "entries": [
-    { "time": "08:30", "amount": 250, "brandSlug": null, "activity": null, "note": "morning" },
-    { "time": "10:15", "amount": 500, "brandSlug": "gerolsteiner", "activity": "post-workout", "note": "" }
-  ],
-  "totalMl": 750,
-  "createdAt": "2026-04-10T00:00:00Z"
-}
+### `hydration_entries` table (flat rows, not embedded array)
+```sql
+create table hydration_entries (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  logged_at timestamptz default now() not null,
+  date date default current_date not null,
+  amount integer not null check (amount between 1 and 5000),
+  brand_slug text references brands(slug),
+  activity text,
+  note text default '' check (char_length(note) <= 200),
+  created_at timestamptz default now()
+);
+-- RLS: users can only CRUD their own entries
+alter table hydration_entries enable row level security;
+create policy "Users can view own entries" on hydration_entries for select using (auth.uid() = user_id);
+create policy "Users can insert own entries" on hydration_entries for insert with check (auth.uid() = user_id);
+create policy "Users can delete own entries" on hydration_entries for delete using (auth.uid() = user_id);
+
+create index idx_hydration_user_date on hydration_entries (user_id, date desc);
 ```
 
-### Brand (MongoDB `brands` collection — seeded from JSON)
-```json
-{
-  "_id": "ObjectId",
-  "slug": "gerolsteiner",
-  "name": "Gerolsteiner",
-  "origin": "Germany",
-  "type": "sparkling",
-  "minerals": {
-    "calcium": 348,
-    "magnesium": 108,
-    "sodium": 118,
-    "potassium": 11,
-    "bicarbonate": 1816,
-    "sulfate": 38,
-    "chloride": 40,
-    "silica": 0,
-    "fluoride": 0.2,
-    "tds": 2479,
-    "ph": 6.2
-  },
-  "amazonAsin": "B004EPBV4G",
-  "image": "/images/brands/gerolsteiner.jpg",
-  "tastingNotes": "Strong mineral taste, highly carbonated",
-  "rating": 4.5,
-  "priceRange": "$$"
-}
+### `brands` table (seeded from JSON)
+```sql
+create table brands (
+  id uuid default gen_random_uuid() primary key,
+  slug text unique not null,
+  name text not null,
+  origin text not null,
+  type text not null check (type in ('still', 'sparkling', 'both')),
+  calcium numeric default 0,
+  magnesium numeric default 0,
+  sodium numeric default 0,
+  potassium numeric default 0,
+  bicarbonate numeric default 0,
+  sulfate numeric default 0,
+  chloride numeric default 0,
+  silica numeric default 0,
+  fluoride numeric default 0,
+  tds numeric default 0,
+  ph numeric default 7,
+  amazon_asin text not null,
+  image text default '',
+  tasting_notes text default '',
+  rating numeric default 0,
+  price_range text default '$$' check (price_range in ('$', '$$', '$$$'))
+);
+-- RLS: public read, no public write
+alter table brands enable row level security;
+create policy "Brands are publicly readable" on brands for select using (true);
 ```
 
 ### Smart Reminder Rules
@@ -307,23 +313,21 @@ Driven by Motion's `useScroll` + `useTransform` on each layer.
 
 ## API Routes (Next.js Route Handlers)
 
+Auth routes are handled by Supabase Auth client-side (`supabase.auth.signUp()`, `signInWithPassword()`, `signInWithOAuth()`, `resetPasswordForEmail()`). Custom API routes:
+
 ```
-POST   /api/auth/register          → Create account (email + hashed password)
-POST   /api/auth/[...nextauth]     → NextAuth sign-in/sign-out/session
-POST   /api/auth/verify-email      → Verify email with token
-POST   /api/auth/forgot-password   → Request password reset email
-POST   /api/auth/reset-password    → Reset password with token
-GET    /api/brands                 → List all brands (public, cached)
+GET    /api/brands                 → List all brands (public, cached — Supabase anon client)
 GET    /api/brands/[slug]          → Single brand detail (public, cached)
 GET    /api/minerals               → List all minerals (public, cached)
-GET    /api/tracker/logs           → Get user's hydration logs (auth required)
-POST   /api/tracker/logs           → Add a hydration entry (auth required)
-DELETE /api/tracker/logs/[id]      → Delete an entry (auth required, owner only)
-GET    /api/tracker/stats          → Get user's 7/30-day stats (auth required)
-PUT    /api/user/profile           → Update user profile/goals (auth required)
-GET    /api/user/profile           → Get user profile (auth required)
-GET    /api/user/export            → Export all user data as JSON (auth required)
-DELETE /api/user/account           → Delete account + all data (auth required)
+GET    /api/tracker/logs           → Get user's hydration entries (auth via Supabase, RLS enforced)
+POST   /api/tracker/logs           → Add a hydration entry (auth + RLS)
+DELETE /api/tracker/logs/[id]      → Delete an entry (auth + RLS — user can only delete own)
+GET    /api/tracker/stats          → Get user's 7/30-day stats (auth + RLS)
+PUT    /api/user/profile           → Update user profile/goals (auth + RLS)
+GET    /api/user/profile           → Get user profile (auth + RLS)
+GET    /api/user/export            → Export all user data as JSON (auth + service role)
+DELETE /api/user/account           → Delete account + all data (auth + service role)
+POST   /api/auth/callback          → Supabase Auth callback for OAuth/email confirm
 GET    /go/[brand]                 → Server-side affiliate redirect (hides tag from client)
 ```
 
@@ -333,48 +337,51 @@ GET    /go/[brand]                 → Server-side affiliate redirect (hides tag
 
 ### 1. Authentication & Session Management
 
-**Core Auth**
-- **NextAuth.js v5** with Credentials provider (email + password) and Google OAuth
-- Passwords hashed with **bcrypt** (12 salt rounds minimum)
-- JWT sessions stored in **HTTP-only, Secure, SameSite=Strict** cookies
-- CSRF token validation on all mutations (built into NextAuth)
-- JWT expiry set to **1 hour**, with sliding window refresh on activity
-- `NEXTAUTH_SECRET` must be 32+ characters, cryptographically random
+**Core Auth (Supabase Auth)**
+- **Supabase Auth** handles all auth flows: email/password sign-up, Google OAuth, email verification, password reset
+- Passwords hashed by Supabase internally (bcrypt, not configurable — handled server-side by Supabase)
+- JWT sessions managed by Supabase — access token + refresh token stored in **HTTP-only cookies** via `@supabase/ssr`
+- PKCE flow for OAuth (Supabase default) — prevents authorization code interception
+- Access token expiry set to **1 hour** (configurable in Supabase dashboard), auto-refreshed by `@supabase/ssr`
+- **Service role key** (`SUPABASE_SERVICE_ROLE_KEY`) must NEVER reach the client — bypasses RLS
 
 **Account Enumeration Protection**
-- Login: always return `"Invalid email or password"` — never reveal which field is wrong
-- Register: always return `"If this email is available, a verification link has been sent"` — never confirm whether email exists
-- Forgot password: always return `"If an account exists, a reset link has been sent"` — same pattern
-- This prevents attackers from discovering which emails have accounts
+- Supabase dashboard: enable "Confirm email" and disable "Enable email confirmations → Double confirm email changes"
+- Sign-up: Supabase returns the same response structure whether the email exists or not (when email confirmation is required)
+- Login: Client-side code catches all auth errors and displays generic "Invalid email or password"
+- Password reset: `supabase.auth.resetPasswordForEmail()` always succeeds from the client's perspective
+- Custom error handler wraps all Supabase auth errors into generic messages
 
 **Email Verification**
-- On registration, account is created with `emailVerified: false`
-- Send verification email with a **cryptographically random token** (stored hashed in DB, expires in 24h)
-- User cannot access `/tracker/*` until email is verified (middleware check)
-- Verification tokens are **single-use** — delete after use
+- Supabase Auth handles email verification automatically — sends confirmation email on sign-up
+- User's `email_confirmed_at` in `auth.users` is set when they click the link
+- Middleware checks `email_confirmed_at` — blocks access to `/tracker/*` if null
+- Verification links are single-use and expire (configurable in Supabase dashboard, default 24h)
 
 **Password Policy**
-- Minimum 8 characters
-- At least 1 uppercase, 1 lowercase, 1 number
-- Check against common password list (top 10,000 — bundled, not API call)
-- Enforce via Zod schema on both client and server
+- Minimum 8 characters (enforced by Supabase, configurable in dashboard)
+- Additional client-side enforcement via Zod: at least 1 uppercase, 1 lowercase, 1 number
+- Check against common password list (top 10,000 — bundled, client + server Zod validation before calling `supabase.auth.signUp()`)
 
 **Password Reset Flow**
-- `POST /api/auth/forgot-password` — accepts email, sends reset link
-- Token: cryptographically random, hashed in DB, expires in **1 hour**, single-use
-- `POST /api/auth/reset-password` — accepts token + new password
-- After reset: invalidate all existing sessions for that user
-- Rate limit: max 3 reset requests per email per hour
+- `supabase.auth.resetPasswordForEmail(email)` — sends reset link
+- User clicks link → lands on `/auth/reset-password` with Supabase-managed token in URL
+- Page calls `supabase.auth.updateUser({ password: newPassword })` — Supabase handles token validation
+- After reset: previous refresh tokens are invalidated automatically by Supabase
+- Rate limiting: Supabase applies built-in rate limits on auth endpoints (configurable)
 
 **OAuth Security**
-- Verify `state` parameter to prevent CSRF on OAuth callbacks (NextAuth handles this)
-- On OAuth sign-in, if email already exists with `provider: "credentials"`, do NOT auto-link — require the user to sign in with password first and link manually
-- This prevents account takeover where attacker creates OAuth with victim's email
+- Supabase uses PKCE flow for OAuth by default — prevents code interception
+- OAuth callback handled by `@supabase/ssr` middleware — verifies state + code_verifier
+- Account linking: Supabase auto-links accounts with the same email when "Auto-confirm OAuth users" is enabled — disable this in dashboard if you want manual linking
+- Configure in Supabase dashboard: Google OAuth provider with client ID/secret
 
-**Account Lockout**
-- After **5 failed login attempts** within 15 minutes, lock account for 15 minutes
-- Track failed attempts per email in DB (not just IP — attacker can rotate IPs)
-- Return same generic error message during lockout (don't reveal lockout state)
+**Account Lockout (Custom — Supabase doesn't have built-in lockout)**
+- Track `failed_login_attempts` and `lock_until` in `profiles` table
+- Postgres function `check_and_increment_login_failures()` called from a custom API route wrapper
+- After **5 failed login attempts** within 15 minutes, set `lock_until` to 15 min from now
+- Login flow: check `lock_until` before calling `supabase.auth.signInWithPassword()` — return generic error if locked
+- Successful login resets `failed_login_attempts` to 0 via `on_auth_user_login` trigger
 
 ### 2. Input Validation & Injection Prevention
 
@@ -394,12 +401,12 @@ Every API route validates input before processing. Specific limits:
 | `slug` params | string | Regex `/^[a-z0-9][a-z0-9-]{0,98}[a-z0-9]$/` — alphanumeric + hyphens only |
 | `entries` array | array | Max 50 entries per day (prevents array bombing) |
 
-**NoSQL Injection Prevention**
-- All slug/ID parameters validated with regex BEFORE any DB query
-- Never pass raw `req.params` or `req.body` to Mongoose queries
-- Use `mongoose.Types.ObjectId.isValid(id)` before any ID-based lookup
-- Explicitly use `{ $eq: value }` or string-only fields — never allow objects in query params
-- Disable MongoDB operators in user input: reject any string starting with `$`
+**SQL Injection Prevention (Supabase handles this)**
+- Supabase JS client uses **parameterized queries** by default — user input is never interpolated into SQL
+- All slug/ID parameters still validated with Zod regex BEFORE any DB query (defense-in-depth)
+- UUID format validation for all ID parameters (Zod `z.string().uuid()`)
+- Never use `.rpc()` with string-concatenated SQL — always use Postgres functions with typed parameters
+- If writing raw SQL in migrations, always use `$1`, `$2` parameter placeholders
 
 **XSS Prevention**
 - React auto-escapes by default — never use `dangerouslySetInnerHTML` with user content
@@ -407,33 +414,43 @@ Every API route validates input before processing. Specific limits:
 - CSP headers block inline scripts (see headers section below)
 - MDX is admin-authored only — never allow user-submitted MDX
 
-**Prototype Pollution Prevention**
-- Use `Object.create(null)` or explicit field extraction from request bodies
-- Never spread `req.body` directly into objects — pick only expected fields
-- Mongoose `schema.set('strict', true)` — reject fields not in schema
+**Request Body Safety**
+- Use Zod `.parse()` / `.safeParse()` on all request bodies — only extract expected fields
+- Never spread raw request body directly into Supabase `.insert()` / `.update()` — pick only validated fields
+- Supabase RLS + column-level privileges prevent writing to columns not exposed by the policy
 
 ### 3. Authorization & Access Control
 
-**Owner-Only Data Access (IDOR Prevention)**
-- EVERY query for user data MUST include `userId` from the authenticated session:
-  ```
-  // CORRECT
-  HydrationLog.findOne({ _id: logId, userId: session.user.id })
+**Row Level Security (RLS) — Defense-in-Depth**
+- **RLS is enabled on EVERY table** — even if the API code also checks ownership
+- RLS policies use `auth.uid()` (the authenticated user's UUID from the JWT) to filter rows
+- This means even if API code has a bug (missing WHERE clause), the database itself blocks unauthorized access
+- Example RLS policies:
+  ```sql
+  -- Users can only see their own hydration entries
+  create policy "Users can view own entries" on hydration_entries
+    for select using (auth.uid() = user_id);
   
-  // WRONG — attacker can guess logId and access other users' data
-  HydrationLog.findOne({ _id: logId })
+  -- Users can only insert entries for themselves
+  create policy "Users can insert own entries" on hydration_entries
+    for insert with check (auth.uid() = user_id);
   ```
-- This applies to: GET logs, DELETE log, GET stats, GET/PUT profile, DELETE account, GET export
-- Create a shared helper `withOwnership(query, session)` to enforce this consistently
-- Test with automated checks: attempt cross-user access in verification suite
+- Public tables (`brands`, `minerals`) have read-only policies: `for select using (true)`
+- No table has a public insert/update/delete policy
+
+**Supabase Key Separation**
+- `SUPABASE_ANON_KEY` (public, safe for browser): respects RLS — the JWT in the request determines what data is accessible
+- `SUPABASE_SERVICE_ROLE_KEY` (secret, server-only): **bypasses ALL RLS** — used only for admin operations (account deletion, data export, seeding)
+- NEVER import `createServiceClient` in client components or expose service role key via `NEXT_PUBLIC_*`
 
 **Middleware Protection Layers**
 ```
 middleware.ts:
-  1. Rate limiting (all routes)
-  2. Auth check for /tracker/*, /api/tracker/*, /api/user/*
-  3. Email verification check for /tracker/*
-  4. CORS enforcement for /api/*
+  1. Supabase session refresh (via @supabase/ssr — refreshes access token on every request)
+  2. Auth check for /tracker/*, /api/tracker/*, /api/user/* — redirect to /login if no session
+  3. Email verification check for /tracker/* — redirect to /verify-email if email_confirmed_at is null
+  4. Rate limiting on custom API routes
+  5. CORS enforcement for /api/*
 ```
 
 **HTTP Method Enforcement**
@@ -458,38 +475,47 @@ middleware.ts:
 | `DELETE /api/user/account` | 1 request | 60 min | userId |
 | `GET /go/[brand]` | 30 requests | 1 min | IP |
 
-Implementation: in-memory store for development, Redis-backed for production (or Vercel KV via Marketplace).
+Supabase Auth endpoints have built-in rate limiting (configurable in dashboard). Custom API routes use in-memory rate limiter for dev, Upstash Redis for production.
 Return `429 Too Many Requests` with `Retry-After` header. Never reveal why the limit exists.
 
-### 5. Database Security
+### 5. Database Security (Supabase / PostgreSQL)
 
 **Connection & Access**
-- MongoDB connection string in `MONGODB_URI` env var — never committed, never logged
-- MongoDB Atlas: create a **dedicated database user** with read/write only to the app database (not admin)
-- IP allowlist on MongoDB Atlas — restrict to Vercel's IP ranges in production
-- Connection pooling via singleton (`lib/mongodb.ts`) — prevents connection exhaustion
-- Set `serverSelectionTimeoutMS: 5000` and `socketTimeoutMS: 45000` on connection
+- Supabase connection is managed — no connection string in env (only `SUPABASE_URL` + keys)
+- `SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_URL` are public (safe to expose — points to your project's API endpoint)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` is public (safe — RLS restricts access based on JWT)
+- `SUPABASE_SERVICE_ROLE_KEY` is SECRET — server-only, never committed, never logged, never in `NEXT_PUBLIC_*`
+- Connection pooling handled by Supabase (Supavisor) — no manual pooling needed
 
 **Schema Enforcement**
-- `strict: true` on all Mongoose schemas — reject unknown fields
-- Required fields enforced at schema level (not just Zod)
+- PostgreSQL `check` constraints enforce field validity at the DB level (e.g., `amount between 1 and 5000`)
+- `not null` constraints on required fields
+- Foreign key constraints with `on delete cascade` for referential integrity
+- Enum-like constraints via `check (type in ('still', 'sparkling', 'both'))`
 - Indexes:
-  - `users.email` — unique, sparse
-  - `users.emailVerificationToken` — sparse (only exists when pending)
-  - `users.passwordResetToken` — sparse, TTL index (auto-delete after 1 hour)
-  - `hydration_logs.userId + date` — compound, for fast per-user queries
-  - `hydration_logs.userId` — for account deletion cascading
+  - `brands.slug` — unique
+  - `minerals.slug` — unique
+  - `hydration_entries(user_id, date desc)` — composite, for fast per-user date queries
+  - `profiles.id` — primary key, references `auth.users(id)` with cascade delete
+
+**Row Level Security (RLS) — The Core Defense**
+- RLS is enabled on **every table** — no exceptions
+- Public tables (`brands`, `minerals`): read-only policy `for select using (true)`
+- User tables (`profiles`, `hydration_entries`): policies use `auth.uid() = user_id` (or `auth.uid() = id` for profiles)
+- No table has a permissive insert/update/delete policy for anonymous or other users
+- Service role key bypasses RLS — used only in server-side admin routes
 
 **Query Safety**
-- Always use Mongoose parameterized methods (`.findOne()`, `.find()`, `.updateOne()`)
-- Never use `$where` or pass user input to aggregation `$expr`
-- Pagination on all list endpoints: default `limit: 30`, max `limit: 100`
-- Sort by indexed fields only — prevent full collection scans
+- Supabase JS client uses parameterized queries by default — SQL injection is not possible through the client API
+- Never use raw SQL via `supabase.rpc()` with string interpolation
+- Pagination on all list endpoints: `.range(0, 29)` default, max 100
+- Sort by indexed columns only — prevent sequential scans
 
 **Data Sensitivity**
-- Password hashes never returned in API responses — use Mongoose `select: '-passwordHash'` on User queries
-- Email returned only to the account owner (not in public-facing data)
-- MongoDB ObjectIDs are somewhat sequential — don't rely on them being secret (use `userId` ownership checks, not obscurity)
+- Supabase Auth stores passwords in `auth.users` — this table is NEVER directly accessible from client-side queries (only via `auth.*` functions)
+- `profiles` table contains no password data — only user metadata
+- Email accessible only through `supabase.auth.getUser()` (server-side) — not in public-facing queries
+- UUIDs are random (not sequential) — but still use RLS, not obscurity
 
 ### 6. Security Headers (`next.config.ts`)
 
@@ -582,11 +608,11 @@ headers: [
 - Cookie consent banner (required in EU) — for analytics cookies, not auth (auth cookies are exempt as "strictly necessary")
 
 **Data Retention**
-- Hydration logs: kept indefinitely while account is active (user can delete individual entries)
-- Verification tokens: auto-expire after 24 hours (TTL index in MongoDB)
-- Password reset tokens: auto-expire after 1 hour (TTL index)
-- Failed login attempts: auto-expire after 24 hours (TTL index)
-- Deleted accounts: all data purged immediately, not soft-deleted
+- Hydration entries: kept indefinitely while account is active (user can delete individual entries)
+- Verification tokens: managed by Supabase Auth — auto-expire (configurable in dashboard)
+- Password reset tokens: managed by Supabase Auth — auto-expire
+- Failed login attempts: reset on successful login; `lock_until` auto-expires after 15 min
+- Deleted accounts: cascade delete via `on delete cascade` foreign keys — all profiles, hydration entries purged when `auth.users` row is deleted
 
 ### 11. Monitoring, Logging & Incident Response
 
@@ -604,7 +630,7 @@ headers: [
 - Passwords (plain or hashed)
 - Full email addresses in plaintext (use hashed or truncated)
 - JWT tokens or session secrets
-- MongoDB connection strings
+- Supabase service role key
 
 **Alerting (v1 — Basic)**
 - Monitor Vercel deployment logs for spikes in 401/403/429 responses
@@ -612,9 +638,10 @@ headers: [
 - Review logs weekly for suspicious patterns
 
 **Incident Response Plan**
-- If `NEXTAUTH_SECRET` is leaked: rotate immediately, all sessions invalidate
-- If database is breached: passwords are bcrypt-hashed (safe), but force all password resets via email
-- If OAuth credentials leak: revoke in Google Console immediately, rotate
+- If `SUPABASE_SERVICE_ROLE_KEY` is leaked: rotate immediately in Supabase dashboard → Settings → API → Regenerate keys
+- If database is breached: passwords are bcrypt-hashed by Supabase Auth (safe), but force all password resets via Supabase dashboard
+- If OAuth credentials leak: revoke in Google Console immediately, update in Supabase dashboard
+- If `NEXT_PUBLIC_SUPABASE_ANON_KEY` is "leaked": this is public by design — RLS protects data. No action needed unless RLS policies are misconfigured
 
 ### 12. Dependency & Supply Chain Security
 
@@ -628,7 +655,7 @@ headers: [
 ### 13. Deployment Security (Vercel)
 
 - **Preview deployments**: password-protect or restrict to team members — preview URLs are public by default and could expose staging features
-- **Environment variables**: use Vercel's env var system — separate values for Preview vs Production
+- **Environment variables**: use Vercel's env var system — separate values for Preview vs Production. `SUPABASE_SERVICE_ROLE_KEY` must be server-only (no `NEXT_PUBLIC_` prefix)
 - **Build output**: verify no `.env` files or secrets in the build output
 - **Domain**: configure DNSSEC if registrar supports it
 - **HTTPS**: enforced by Vercel (automatic TLS certificates)
@@ -636,7 +663,7 @@ headers: [
 ### 14. Client-Side Security
 
 - Never store tokens, secrets, or sensitive data in `localStorage` or `sessionStorage`
-- Auth state managed via HTTP-only cookies only (NextAuth handles this)
+- Auth state managed via HTTP-only cookies (Supabase `@supabase/ssr` handles this via cookie-based session storage)
 - Notification API: only request permission when user explicitly clicks "Enable Reminders" — not on page load (browsers penalize auto-prompts)
 - All external links use `rel="noopener noreferrer"` — prevents `window.opener` attacks
 - No `eval()`, no `new Function()`, no dynamic script injection
@@ -646,21 +673,16 @@ headers: [
 
 ```
 # Server-only secrets (NEVER prefix with NEXT_PUBLIC_)
-MONGODB_URI=mongodb+srv://appuser:strongpassword@cluster.mongodb.net/mineralwater
-NEXTAUTH_SECRET=<64-char-cryptographically-random-string>
-NEXTAUTH_URL=https://yourdomain.com
-GOOGLE_CLIENT_ID=<from-google-console>
-GOOGLE_CLIENT_SECRET=<from-google-console>
-EMAIL_SERVER_HOST=smtp.example.com
-EMAIL_SERVER_PORT=587
-EMAIL_SERVER_USER=noreply@yourdomain.com
-EMAIL_SERVER_PASSWORD=<smtp-password>
-EMAIL_FROM=noreply@yourdomain.com
+SUPABASE_SERVICE_ROLE_KEY=<from-supabase-dashboard — bypasses RLS, NEVER expose to client>
 
-# Client-safe (public — okay to expose in browser)
+# Client-safe (public — okay to expose in browser, RLS protects data)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<from-supabase-dashboard — respects RLS>
 NEXT_PUBLIC_AMAZON_TAG=your-affiliate-tag
 NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 ```
+
+**Note:** Google OAuth client ID/secret are configured in the Supabase dashboard (Authentication → Providers → Google), NOT in env vars. Email templates are also configured in the Supabase dashboard (Authentication → Email Templates). No SMTP env vars needed — Supabase sends auth emails directly (or configure a custom SMTP in dashboard for production).
 
 ---
 
@@ -683,30 +705,28 @@ NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 - Set up `.gitignore` (`.env*`, `node_modules`, `.next`)
 
 ### Step 2: Database & Auth
-- Install `mongoose`, `next-auth`, `bcrypt`, `zod`, `sanitize-html`, `nodemailer`
-- Set up MongoDB connection singleton (`lib/mongodb.ts`) with connection pooling and timeouts
-- Define Mongoose schemas with `strict: true`:
-  - `User` — includes `emailVerified`, `failedLoginAttempts`, `lockUntil`, token fields, TTL indexes
-  - `Brand`, `Mineral` — read-only content, seeded from JSON
-  - `HydrationLog` — compound index on `userId + date`
-- Configure NextAuth with Credentials + Google providers:
-  - JWT expiry: 1 hour with sliding window
-  - Account enumeration protection on all auth responses
-  - OAuth account linking protection (don't auto-merge with existing email)
-- Build registration API route:
-  - Password hashing (bcrypt 12 rounds)
-  - Password policy enforcement (8+ chars, complexity, common password check)
-  - Email verification token generation + email sending
-  - Account created with `emailVerified: false`
-- Build email verification route (`/api/auth/verify-email`)
-- Build password reset flow (`/api/auth/forgot-password` + `/api/auth/reset-password`)
-- Create auth middleware helper (`lib/auth-guard.ts`):
-  - Session validation
-  - Email verification check for tracker routes
-  - Owner-only data access helper (`withOwnership`)
-- Build rate limiting middleware (`lib/rate-limit.ts`) — apply to ALL routes with per-route configs
-- Account lockout logic (5 failed attempts → 15 min lock)
-- Build seed script to populate brands and minerals from JSON files
+- Install `@supabase/supabase-js`, `@supabase/ssr`, `zod`, `sanitize-html`
+- Create Supabase project and configure:
+  - Enable email auth with "Confirm email" enabled
+  - Configure Google OAuth provider in dashboard
+  - Set access token expiry to 1 hour
+  - Configure email templates (verification, password reset)
+- Write SQL migrations for all tables with RLS:
+  - `profiles` — extends `auth.users`, cascade delete, includes `failed_login_attempts`, `lock_until`
+  - `brands`, `minerals` — read-only public tables, seeded from JSON
+  - `hydration_entries` — flat rows (not embedded), composite index on `(user_id, date)`
+- Create Supabase client utilities:
+  - `lib/supabase/client.ts` — browser client (anon key)
+  - `lib/supabase/server.ts` — server client (anon key + cookies via `@supabase/ssr`)
+  - `lib/supabase/admin.ts` — service role client (bypasses RLS, server-only)
+- Create auth callback route (`/api/auth/callback`) for OAuth/email verification
+- Build Next.js middleware:
+  - Session refresh on every request via `@supabase/ssr`
+  - Auth check for `/tracker/*`, `/api/tracker/*`, `/api/user/*`
+  - Email verification check for `/tracker/*`
+- Build rate limiting for custom API routes (`lib/rate-limit.ts`)
+- Account lockout logic (custom — Postgres function + profiles table)
+- Build seed script using Supabase service role client
 - Configure CORS for protected vs public routes
 
 ### Step 3: Data Layer
@@ -759,7 +779,7 @@ NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 - **History view**: Past 7/30 days chart — lines draw on scroll, date cards stagger in. Organic wave chart style (not harsh line chart)
 - **Profile setup**: Progressive — collected in-context on first tracker visit, not upfront registration form. Weight, activity level, climate → calculates personalized daily goal
 - **Animated empty state**: First visit shows what the tracker looks like with sample data + gentle "Log your first glass" CTA. Contextual tooltips on first interaction
-- **Data synced to MongoDB** — user must be signed in, data persists across devices
+- **Data synced to Supabase (PostgreSQL)** — user must be signed in, RLS enforces ownership, data persists across devices
 - **Brand tie-in**: When logging, optionally select which mineral water brand → links to brand page
 
 ### Step 9: Design Polish & Animation Integration
@@ -825,16 +845,16 @@ https://www.amazon.com/dp/{ASIN}?tag={AFFILIATE_TAG}
 3. Verify `/go/[brand]` redirect works and affiliate tag is NOT in page source
 4. Test comparison pages with different brand pairs
 5. Confirm MDX blog posts render properly
-6. Test hydration tracker: log water, verify progress updates in DB
+6. Test hydration tracker: log water, verify progress updates in Supabase
 7. Test browser notifications fire correctly on reminder intervals
 8. Verify daily goal recalculates when profile changes
 9. Test history chart renders correctly with multiple days of data
 
 **Authentication**
-10. Register — verify password is bcrypt hashed in DB (not plaintext)
-11. Register — verify account starts with `emailVerified: false`
-12. Register — verify verification email is sent with valid token
-13. Verify email — confirm `emailVerified` flips to `true` after clicking link
+10. Register — verify Supabase Auth creates user with email_confirmed_at = null
+11. Register — verify confirmation email is sent automatically by Supabase
+12. Verify email — confirm `email_confirmed_at` is set after clicking link
+13. Verify email — confirm profile row is created in `profiles` table (via trigger)
 14. Verify email — confirm token is single-use (second click fails)
 15. Verify email — confirm expired token (>24h) is rejected
 16. Unverified user cannot access `/tracker/*` — redirected to "verify your email" page
@@ -846,8 +866,8 @@ https://www.amazon.com/dp/{ASIN}?tag={AFFILIATE_TAG}
 22. Forgot password with non-existent email — verify SAME generic message
 23. Password reset — verify token works, password changes, old sessions invalidated
 24. Password reset — verify expired token (>1h) is rejected
-25. Google OAuth sign-in — verify new account created in DB
-26. Google OAuth with email that already has password account — verify NO auto-link (require manual link)
+25. Google OAuth sign-in — verify new account created in `auth.users` + profile row in `profiles`
+26. Google OAuth with email that already has password account — verify behavior matches Supabase dashboard config
 27. Weak password rejected — test "password", "12345678", "qwerty123"
 
 **Account Lockout**
@@ -856,11 +876,12 @@ https://www.amazon.com/dp/{ASIN}?tag={AFFILIATE_TAG}
 30. Successful login resets failed attempt counter
 
 **Authorization (IDOR)**
-31. User A cannot GET User B's hydration logs — returns empty/403
-32. User A cannot DELETE User B's hydration log entry — returns 403
-33. User A cannot GET User B's profile — returns 403
-34. User A cannot PUT to User B's profile — returns 403
+31. User A cannot GET User B's hydration entries — RLS returns empty result (not 403)
+32. User A cannot DELETE User B's hydration entry — RLS silently blocks (0 rows affected)
+33. User A cannot GET User B's profile — RLS returns empty result
+34. User A cannot PUT to User B's profile — RLS blocks update
 35. Access any `/api/tracker/*` or `/api/user/*` without auth — returns 401
+35a. Verify RLS is enabled on ALL tables: `select tablename, rowsecurity from pg_tables where schemaname = 'public'`
 
 **Rate Limiting**
 36. Hit `POST /api/auth/register` 4 times in 15 min → 4th request returns 429
@@ -879,10 +900,10 @@ https://www.amazon.com/dp/{ASIN}?tag={AFFILIATE_TAG}
 47. Send extra fields not in schema → rejected (strict mode)
 48. Send empty body to POST routes → rejected with 400
 
-**NoSQL Injection**
-49. Brand slug: `{"$gt":""}` → rejected before DB query
-50. Log ID: `{"$ne":null}` → rejected before DB query
-51. Email field with MongoDB operator → rejected by Zod
+**SQL Injection (Supabase prevents by default)**
+49. Attempt SQL injection via brand slug parameter → rejected by Zod regex + Supabase parameterized query
+50. Attempt SQL injection via hydration entry note field → sanitized + Supabase parameterized query
+51. Verify no raw SQL string concatenation exists in codebase (grep for it)
 
 **Headers & Transport**
 52. Check `X-Frame-Options: DENY` present
@@ -901,9 +922,9 @@ https://www.amazon.com/dp/{ASIN}?tag={AFFILIATE_TAG}
 **Data Privacy**
 62. `GET /api/user/export` — returns complete user data as JSON
 63. `DELETE /api/user/account` — deletes user + all hydration logs + all tokens
-64. Verify deleted user's data is completely gone from DB (not soft-deleted)
-65. Verify password hash is NEVER returned in any API response
-66. Verify email is only returned to the account owner
+64. Verify deleted user's data is completely gone from all tables (cascade delete, not soft-deleted)
+65. Verify `auth.users` table is never queried directly from client — only via `supabase.auth.getUser()`
+66. Verify email is only returned to the account owner (via `supabase.auth.getUser()`, not from `profiles` table)
 
 **Performance & SEO**
 67. Test responsive design at mobile/tablet/desktop breakpoints
@@ -942,13 +963,10 @@ code_a_site/
 │   │   ├── page.tsx                # Hydration tracker dashboard
 │   │   ├── history/page.tsx        # Full history view
 │   │   └── settings/page.tsx       # Profile & reminder settings
+│   ├── auth/
+│   │   ├── callback/route.ts         # Supabase Auth callback (OAuth + email confirm)
+│   │   └── reset-password/page.tsx   # Password reset form (user lands here from email link)
 │   ├── api/
-│   │   ├── auth/
-│   │   │   ├── [...nextauth]/route.ts    # NextAuth handler
-│   │   │   ├── register/route.ts         # Registration + email verification send
-│   │   │   ├── verify-email/route.ts     # Email verification endpoint
-│   │   │   ├── forgot-password/route.ts  # Password reset request
-│   │   │   └── reset-password/route.ts   # Password reset with token
 │   │   ├── brands/
 │   │   │   ├── route.ts                  # List brands
 │   │   │   └── [slug]/route.ts           # Single brand
@@ -1002,34 +1020,36 @@ code_a_site/
 │   │   └── EmptyState.tsx          # Animated empty state with sample data
 │   ├── Header.tsx                  # Transparent-to-solid on scroll
 │   └── Footer.tsx
-├── models/                         # Mongoose schemas
-│   ├── User.ts
-│   ├── Brand.ts
-│   ├── Mineral.ts
-│   └── HydrationLog.ts
 ├── lib/
-│   ├── mongodb.ts                  # MongoDB connection singleton (pooling + timeouts)
-│   ├── auth.ts                     # NextAuth config (JWT expiry, providers, callbacks)
-│   ├── auth-guard.ts               # Session check, email verify check, withOwnership helper
+│   ├── supabase/
+│   │   ├── client.ts               # Browser Supabase client (anon key, for client components)
+│   │   ├── server.ts               # Server Supabase client (anon key + cookies via @supabase/ssr)
+│   │   ├── admin.ts                # Service role client (bypasses RLS, server-only)
+│   │   └── middleware.ts           # Session refresh helper for Next.js middleware
 │   ├── rate-limit.ts               # Per-route rate limiting with configurable limits
 │   ├── cors.ts                     # CORS helper (same-origin for auth, open for public)
 │   ├── validations.ts              # Zod schemas for ALL API inputs (strict field limits)
 │   ├── sanitize.ts                 # HTML stripping for user text fields
-│   ├── email.ts                    # Nodemailer setup: verification, password reset emails
-│   ├── tokens.ts                   # Crypto token generation + hashing helpers
-│   ├── password.ts                 # Bcrypt + password policy (complexity + common check)
 │   ├── brands.ts                   # Brand data utilities
 │   ├── minerals.ts                 # Mineral data utilities
 │   ├── amazon.ts                   # Affiliate link generator
 │   ├── hydration.ts                # Goal calculator, reminder logic
-│   └── types.ts                    # TypeScript types
+│   └── types.ts                    # TypeScript types (+ Supabase generated types)
 ├── data/
 │   ├── seed/                       # JSON seed files
 │   │   ├── brands.json
 │   │   └── minerals.json
 │   └── best-for.json               # Best-for list configs
+├── supabase/
+│   ├── migrations/                 # SQL migrations (schema, RLS policies, functions)
+│   │   ├── 001_create_profiles.sql
+│   │   ├── 002_create_brands.sql
+│   │   ├── 003_create_minerals.sql
+│   │   ├── 004_create_hydration_entries.sql
+│   │   └── 005_create_functions.sql  # Triggers, lockout function
+│   └── seed.sql                    # Seed data for brands + minerals
 ├── scripts/
-│   └── seed.ts                     # DB seed script (run once to populate)
+│   └── seed.ts                     # Seed script (uses Supabase service role client)
 ├── middleware.ts                    # NextAuth + rate limit middleware
 ├── content/
 │   └── blog/                       # MDX blog posts
