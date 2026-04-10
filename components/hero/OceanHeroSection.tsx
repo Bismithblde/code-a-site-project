@@ -88,31 +88,56 @@ export function OceanHeroSection() {
     bottles.map((_, i) => (i === 0 ? 1 : 0))
   );
   const videoRef = useRef<HTMLVideoElement>(null);
+  const sectionRef = useRef<HTMLDivElement>(null);
 
-  // Force video play — handles autoplay policy in all browsers
+  // Scroll-driven video scrubbing — video plays as you scroll
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    const section = sectionRef.current;
+    if (!video || !section) return;
 
-    const tryPlay = () => {
-      video.play().catch(() => {
-        // Autoplay blocked — retry on first user interaction
-        const handleInteraction = () => {
-          video.play().catch(() => {});
-          document.removeEventListener("click", handleInteraction);
-          document.removeEventListener("touchstart", handleInteraction);
-          document.removeEventListener("scroll", handleInteraction);
-        };
-        document.addEventListener("click", handleInteraction, { once: true });
-        document.addEventListener("touchstart", handleInteraction, { once: true });
-        document.addEventListener("scroll", handleInteraction, { once: true });
-      });
+    // Wait for video metadata to load so we know the duration
+    const setupScroll = () => {
+      const duration = video.duration;
+      if (!duration || !isFinite(duration)) return;
+
+      let ticking = false;
+
+      const onScroll = () => {
+        if (ticking) return;
+        ticking = true;
+
+        requestAnimationFrame(() => {
+          const rect = section.getBoundingClientRect();
+          const sectionHeight = section.offsetHeight;
+          // Calculate scroll progress: 0 when section top is at viewport top, 1 when section bottom leaves viewport
+          const scrolled = -rect.top;
+          const scrollRange = sectionHeight + window.innerHeight;
+          const progress = Math.max(0, Math.min(1, scrolled / scrollRange));
+
+          video.currentTime = progress * duration;
+          ticking = false;
+        });
+      };
+
+      window.addEventListener("scroll", onScroll, { passive: true });
+      // Set initial position
+      onScroll();
+
+      return () => window.removeEventListener("scroll", onScroll);
     };
 
-    if (video.readyState >= 3) {
-      tryPlay();
+    if (video.readyState >= 1) {
+      const cleanup = setupScroll();
+      return cleanup;
     } else {
-      video.addEventListener("canplay", tryPlay, { once: true });
+      let cleanup: (() => void) | undefined;
+      const handler = () => { cleanup = setupScroll(); };
+      video.addEventListener("loadedmetadata", handler, { once: true });
+      return () => {
+        video.removeEventListener("loadedmetadata", handler);
+        cleanup?.();
+      };
     }
   }, []);
 
@@ -144,12 +169,12 @@ export function OceanHeroSection() {
   }, []);
 
   return (
-    <section className="relative w-full h-[100svh] min-h-[600px] max-h-[1100px] overflow-hidden">
-      {/* ── Video background ── */}
+    <section ref={sectionRef} className="relative w-full h-[300svh]">
+      {/* Sticky container — video and content stick while you scroll through */}
+      <div className="sticky top-0 h-[100svh] min-h-[600px] max-h-[1100px] overflow-hidden">
+      {/* ── Video background — paused, scrubbed by scroll ── */}
       <video
         ref={videoRef}
-        autoPlay
-        loop
         muted
         playsInline
         preload="auto"
@@ -271,6 +296,19 @@ export function OceanHeroSection() {
           zIndex: 15,
         }}
       />
+
+      {/* ── Scroll hint ── */}
+      <div
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+        style={{ zIndex: 20 }}
+      >
+        <span className="text-xs text-white/50 tracking-widest uppercase">Scroll to explore</span>
+        <div className="w-5 h-8 rounded-full border-2 border-white/30 flex items-start justify-center p-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-white/60 animate-bounce" />
+        </div>
+      </div>
+
+      </div>{/* close sticky container */}
     </section>
   );
 }
