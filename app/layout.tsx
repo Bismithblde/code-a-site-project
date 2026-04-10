@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { BottomNav } from "@/components/BottomNav";
 import { CommandPalette } from "@/components/CommandPalette";
+import { JsonLd } from "@/components/JsonLd";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,10 +18,38 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mineralwater.com";
+
 export const metadata: Metadata = {
-  title: "MineralWater — Find Your Perfect Water",
+  title: {
+    default: "MineralWater — Find Your Perfect Water",
+    template: "%s — MineralWater",
+  },
   description:
     "Compare mineral water brands by mineral content. Track your hydration. Find the best water for your health goals.",
+  metadataBase: new URL(siteUrl),
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: siteUrl,
+    siteName: "MineralWater",
+    title: "MineralWater — Find Your Perfect Water",
+    description:
+      "Compare mineral water brands by mineral content. Track your hydration. Find the best water for your health goals.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MineralWater — Find Your Perfect Water",
+    description:
+      "Compare mineral water brands by mineral content. Track your hydration. Find the best water for your health goals.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: siteUrl,
+  },
 };
 
 export default function RootLayout({
@@ -35,6 +64,34 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "MineralWater",
+            url: siteUrl,
+            logo: `${siteUrl}/favicon.ico`,
+            description:
+              "Compare mineral water brands by mineral content. Track your hydration.",
+            sameAs: [],
+          }}
+        />
+        <JsonLd
+          data={{
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "MineralWater",
+            url: siteUrl,
+            potentialAction: {
+              "@type": "SearchAction",
+              target: {
+                "@type": "EntryPoint",
+                urlTemplate: `${siteUrl}/brands?q={search_term_string}`,
+              },
+              "query-input": "required name=search_term_string",
+            },
+          }}
+        />
         <LenisProvider>
           <Header />
           <main className="flex-1 pt-16 pb-16 md:pb-0">{children}</main>

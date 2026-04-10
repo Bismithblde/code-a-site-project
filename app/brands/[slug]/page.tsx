@@ -7,6 +7,7 @@ import { WaveDivider } from "@/components/animation/WaveDivider";
 import { FloatingBubbles } from "@/components/animation/FloatingBubbles";
 import Link from "next/link";
 import { AffiliateButton } from "@/components/AffiliateButton";
+import { JsonLd } from "@/components/JsonLd";
 import type { Brand } from "@/lib/types";
 import type { Metadata } from "next";
 
@@ -29,9 +30,21 @@ export async function generateMetadata({
     return { title: "Brand Not Found" };
   }
 
+  const description = `${brand.name} from ${brand.origin}. ${brand.tasting_notes}`;
+
   return {
-    title: `${brand.name} Mineral Water — MineralWater`,
-    description: `${brand.name} from ${brand.origin}. ${brand.tasting_notes}`,
+    title: `${brand.name} Mineral Water`,
+    description,
+    openGraph: {
+      title: `${brand.name} Mineral Water — MineralWater`,
+      description,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: `${brand.name} Mineral Water — MineralWater`,
+      description,
+    },
   };
 }
 
@@ -93,9 +106,54 @@ export default async function BrandDetailPage({
   }
 
   const b = brand as Brand;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mineralwater.com";
 
   return (
     <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: `${b.name} Mineral Water`,
+          description: b.tasting_notes,
+          brand: {
+            "@type": "Brand",
+            name: b.name,
+          },
+          url: `${siteUrl}/brands/${b.slug}`,
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: b.rating.toFixed(1),
+            bestRating: "5",
+            worstRating: "1",
+            ratingCount: "1",
+          },
+          offers: {
+            "@type": "Offer",
+            url: `${siteUrl}/go/${b.slug}`,
+            priceCurrency: "USD",
+            availability: "https://schema.org/InStock",
+          },
+          additionalProperty: [
+            {
+              "@type": "PropertyValue",
+              name: "TDS",
+              value: `${b.tds} mg/L`,
+            },
+            {
+              "@type": "PropertyValue",
+              name: "pH",
+              value: b.ph.toString(),
+            },
+            {
+              "@type": "PropertyValue",
+              name: "Origin",
+              value: b.origin,
+            },
+          ],
+        }}
+      />
+
       {/* Parallax Hero Header */}
       <section className="relative min-h-[50vh] flex items-center justify-center overflow-hidden -mt-16">
         <ParallaxLayer speed={0.3} className="absolute inset-0">

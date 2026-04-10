@@ -5,6 +5,7 @@ import { WaveDivider } from "@/components/animation/WaveDivider";
 import { ParallaxLayer } from "@/components/animation/ParallaxLayer";
 import { FloatingBubbles } from "@/components/animation/FloatingBubbles";
 import { MDXContent } from "./MDXContent";
+import { JsonLd } from "@/components/JsonLd";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -20,8 +21,21 @@ export async function generateMetadata({
   if (!post) return { title: "Post Not Found" };
 
   return {
-    title: `${post.title} — MineralWater Blog`,
+    title: post.title,
     description: post.excerpt,
+    openGraph: {
+      title: `${post.title} — MineralWater Blog`,
+      description: post.excerpt,
+      type: "article",
+      publishedTime: post.date,
+      authors: [post.author],
+      tags: post.tags,
+    },
+    twitter: {
+      card: "summary",
+      title: `${post.title} — MineralWater Blog`,
+      description: post.excerpt,
+    },
   };
 }
 
@@ -41,8 +55,31 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const prevPost = currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
   const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://mineralwater.com";
+
   return (
     <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: post.title,
+          description: post.excerpt,
+          datePublished: post.date,
+          author: {
+            "@type": "Person",
+            name: post.author,
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "MineralWater",
+            url: siteUrl,
+          },
+          mainEntityOfPage: `${siteUrl}/blog/${post.slug}`,
+          keywords: post.tags.join(", "),
+        }}
+      />
+
       {/* Hero */}
       <section className="relative min-h-[35vh] flex items-center justify-center overflow-hidden -mt-16">
         <ParallaxLayer speed={0.3} className="absolute inset-0">

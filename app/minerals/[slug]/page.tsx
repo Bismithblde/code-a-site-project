@@ -30,9 +30,21 @@ export async function generateMetadata({
     return { title: "Mineral Not Found" };
   }
 
+  const description = `Learn about ${mineral.name} in mineral water. Benefits: ${(mineral.benefits as string[]).join(", ")}.`;
+
   return {
-    title: `${mineral.name} in Mineral Water — MineralWater`,
-    description: `Learn about ${mineral.name} in mineral water. Benefits: ${(mineral.benefits as string[]).join(", ")}.`,
+    title: `${mineral.name} in Mineral Water`,
+    description,
+    openGraph: {
+      title: `${mineral.name} in Mineral Water — MineralWater`,
+      description,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title: `${mineral.name} in Mineral Water — MineralWater`,
+      description,
+    },
   };
 }
 
