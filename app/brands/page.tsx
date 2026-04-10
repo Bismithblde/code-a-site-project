@@ -37,7 +37,7 @@ export default async function BrandsPage() {
 
         <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {allBrands.map((brand) => (
-            <ProductCard key={brand.slug} brand={brand} />
+            <ProductCard key={brand.slug} brand={brand} showAffiliate />
           ))}
         </StaggerGrid>
       </section>
@@ -52,7 +52,7 @@ export default async function BrandsPage() {
           </ScrollReveal>
           <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {stillBrands.map((brand) => (
-              <ProductCard key={brand.slug} brand={brand} />
+              <ProductCard key={brand.slug} brand={brand} showAffiliate />
             ))}
           </StaggerGrid>
         </section>
@@ -65,7 +65,7 @@ export default async function BrandsPage() {
           </ScrollReveal>
           <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {sparklingBrands.map((brand) => (
-              <ProductCard key={brand.slug} brand={brand} />
+              <ProductCard key={brand.slug} brand={brand} showAffiliate />
             ))}
           </StaggerGrid>
         </section>
@@ -78,7 +78,7 @@ export default async function BrandsPage() {
           </ScrollReveal>
           <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {bothBrands.map((brand) => (
-              <ProductCard key={brand.slug} brand={brand} />
+              <ProductCard key={brand.slug} brand={brand} showAffiliate />
             ))}
           </StaggerGrid>
         </section>
