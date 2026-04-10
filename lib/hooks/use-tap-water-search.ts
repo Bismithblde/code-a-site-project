@@ -28,7 +28,7 @@ export function useTapWaterSearch(options?: UseTapWaterSearchOptions) {
         dispatch({
           type: "validationFailed",
           query,
-          message: "Enter a ZIP code or location to search nearby samples.",
+          message: "Enter a ZIP code to search lead-at-the-tap samples.",
         });
         return;
       }

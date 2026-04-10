@@ -1,15 +1,28 @@
 export type TapWaterStatus = "normal" | "review" | "alert" | "unknown";
 
+export type TapWaterLeadRisk = "low" | "elevated" | "high" | "unknown";
+export type TapWaterFilterRecommendation =
+  | "not_needed"
+  | "recommended"
+  | "strongly_recommended"
+  | "unknown";
+
 export type TapWaterSampleSummary = {
-  bacteria: "not_detected" | "coliform_detected" | "e_coli_detected";
-  clarity: "normal" | "review";
-  disinfection: "normal" | "low_review" | "high_alert";
-  overall: "normal" | "review" | "alert";
+  leadRisk: TapWaterLeadRisk;
+  overall: TapWaterStatus;
+  filterRecommendation: TapWaterFilterRecommendation;
 };
 
 export type TapWaterHealthSummary = {
   status: "normal" | "watch" | "alert" | "unknown";
   reasons: string[];
+};
+
+export type TapWaterMeasurement = {
+  raw: string | null;
+  value: number | null;
+  comparator: "lt" | "lte" | "gt" | "gte" | "eq" | null;
+  parseError: string | null;
 };
 
 export type TapWaterSample = {
@@ -18,11 +31,18 @@ export type TapWaterSample = {
   sampleDate: string | null;
   sampleTime: string | null;
   sampledAt: string | null;
-  sampleSite: string | null;
-  sampleClass: string | null;
+  dateReceived: string | null;
+  zipCode: string | null;
+  borough: string | null;
   location: string | null;
   latitude: number | null;
   longitude: number | null;
+  leadFirstDraw: TapWaterMeasurement;
+  leadFlushOneToTwo: TapWaterMeasurement;
+  leadFlushFive: TapWaterMeasurement;
+  copperFirstDraw: TapWaterMeasurement;
+  copperFlushOneToTwo: TapWaterMeasurement;
+  copperFlushFive: TapWaterMeasurement;
   distanceMiles?: number;
   summary: TapWaterSampleSummary;
   healthSummary: TapWaterHealthSummary;
@@ -32,9 +52,17 @@ export type TapWaterNearbySummary = {
   sampleCount: number;
   nearestDistanceMiles: number | null;
   overall: TapWaterStatus;
-  bacteria: TapWaterSampleSummary["bacteria"] | "unknown";
-  clarity: TapWaterSampleSummary["clarity"] | "unknown";
-  disinfection: TapWaterSampleSummary["disinfection"] | "unknown";
+  leadRisk: TapWaterLeadRisk;
+  filterRecommendation: TapWaterFilterRecommendation;
+  averageLeadFirstDrawMgL?: number | null;
+  averageLeadFlushOneToTwoMgL?: number | null;
+  averageLeadFlushFiveMgL?: number | null;
+  leadRiskDistribution?: {
+    low: number;
+    elevated: number;
+    high: number;
+    unknown: number;
+  };
 };
 
 export type TapWaterMeta = {

@@ -5,9 +5,14 @@ import { Search } from "lucide-react";
 import { useTapWaterSearch } from "@/lib/hooks/use-tap-water-search";
 import {
   formatDistanceMiles,
+  formatFilterRecommendationLabel,
+  formatLeadRiskLabel,
+  formatLeadValue,
+  formatProbability,
   formatSampleDate,
   formatStatusLabel,
   getStatusBadgeVariant,
+  shouldBuyFilter,
 } from "@/lib/tap-water/format";
 import type { TapWaterSample } from "@/lib/tap-water/types";
 import { Badge } from "@/components/ui/badge";
@@ -37,15 +42,21 @@ function SampleCard({ sample }: { sample: TapWaterSample }) {
   const overallStatus = sample.summary.overall;
   const reasons = sample.healthSummary.reasons ?? [];
   const keyReasons = reasons.slice(0, 2);
+  const maxLead = [sample.leadFirstDraw.value, sample.leadFlushOneToTwo.value, sample.leadFlushFive.value]
+    .filter((value): value is number => value != null)
+    .sort((left, right) => right - left)[0] ?? null;
 
   return (
     <Card>
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle className="text-base">{sample.location ?? "Unknown location"}</CardTitle>
+            <CardTitle className="text-base">
+              {sample.zipCode ? `ZIP ${sample.zipCode}` : sample.location ?? "Unknown location"}
+            </CardTitle>
             <CardDescription>
-              Sample {sample.sampleNumber ?? "N/A"} • {formatSampleDate(sample)}
+              {sample.borough ?? "NYC"} • Sample {sample.sampleNumber ?? "N/A"} •{" "}
+              {formatSampleDate(sample)}
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -58,11 +69,11 @@ function SampleCard({ sample }: { sample: TapWaterSample }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <SummaryField label="Bacteria" value={formatStatusLabel(sample.summary.bacteria)} />
-          <SummaryField label="Clarity" value={formatStatusLabel(sample.summary.clarity)} />
+          <SummaryField label="Lead Risk" value={formatLeadRiskLabel(sample.summary.leadRisk)} />
+          <SummaryField label="Highest Lead" value={formatLeadValue(maxLead)} />
           <SummaryField
-            label="Disinfection"
-            value={formatStatusLabel(sample.summary.disinfection)}
+            label="Filter Decision"
+            value={formatFilterRecommendationLabel(sample.summary.filterRecommendation)}
           />
         </div>
         {keyReasons.length > 0 ? (
@@ -136,8 +147,8 @@ export function TapWaterPageClient({
       <header className="space-y-2">
         <h1 className="text-3xl font-bold">NYC Tap Water Lookup</h1>
         <p className="max-w-3xl text-muted-foreground">
-          Search by ZIP code for nearest NYC samples and nearby status summary. You can also
-          enter a location term used by the backend search.
+          Search by ZIP code for lead-at-the-tap samples and a quick recommendation on
+          whether you should buy a certified lead-removal filter.
         </p>
       </header>
 
@@ -145,14 +156,14 @@ export function TapWaterPageClient({
         <CardHeader>
           <CardTitle className="text-lg">Search Nearby Samples</CardTitle>
           <CardDescription>
-            Try a ZIP like <span className="font-medium">11356</span>, or enter a location term.
+            Enter a 5-digit NYC ZIP code like <span className="font-medium">11356</span>.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-3 sm:flex-row" onSubmit={onSubmit}>
             <Input
               value={state.query}
-              placeholder="Enter ZIP code or location"
+              placeholder="Enter ZIP code"
               onValueChange={setQuery}
               aria-invalid={state.phase === "validation_error"}
               disabled={isLoading}
@@ -178,7 +189,7 @@ export function TapWaterPageClient({
         <Card>
           <CardContent className="py-8">
             <p className="text-sm text-muted-foreground">
-              Enter a ZIP code to see nearest samples, distances, and a nearby health summary.
+              Enter a ZIP code to see lead results and a filter recommendation.
             </p>
           </CardContent>
         </Card>
@@ -224,11 +235,25 @@ export function TapWaterPageClient({
             </div>
           </CardHeader>
           <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <SummaryField label="Bacteria" value={formatStatusLabel(summary.bacteria)} />
-            <SummaryField label="Clarity" value={formatStatusLabel(summary.clarity)} />
             <SummaryField
-              label="Disinfection"
-              value={formatStatusLabel(summary.disinfection)}
+              label="Lead Risk"
+              value={formatLeadRiskLabel(summary.leadRisk)}
+            />
+            <SummaryField
+              label="Should Buy Filter"
+              value={shouldBuyFilter(summary.filterRecommendation) ? "Yes" : "No"}
+            />
+            <SummaryField
+              label="Recommendation"
+              value={formatFilterRecommendationLabel(summary.filterRecommendation)}
+            />
+            <SummaryField
+              label="Avg Lead (First Draw)"
+              value={formatLeadValue(summary.averageLeadFirstDrawMgL ?? null)}
+            />
+            <SummaryField
+              label="High-Risk Probability"
+              value={formatProbability(summary.leadRiskDistribution?.high)}
             />
             <SummaryField
               label="Nearest Distance"
@@ -246,7 +271,7 @@ export function TapWaterPageClient({
         <Card>
           <CardContent className="py-8">
             <p className="text-sm text-muted-foreground">
-              No samples matched this search yet. Try another ZIP code or broader location.
+              No lead-at-the-tap samples were found for this ZIP code yet.
             </p>
           </CardContent>
         </Card>

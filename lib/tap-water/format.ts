@@ -1,4 +1,6 @@
 import type {
+  TapWaterFilterRecommendation,
+  TapWaterLeadRisk,
   TapWaterNearbySummary,
   TapWaterSample,
   TapWaterSearchMode,
@@ -43,12 +45,58 @@ export function formatStatusLabel(status: TapWaterStatus | string) {
   return formatTitleCase(status);
 }
 
+export function formatLeadRiskLabel(value: TapWaterLeadRisk | "unknown") {
+  switch (value) {
+    case "low":
+      return "Low";
+    case "elevated":
+      return "Elevated";
+    case "high":
+      return "High";
+    default:
+      return "Unknown";
+  }
+}
+
+export function formatFilterRecommendationLabel(value: TapWaterFilterRecommendation) {
+  switch (value) {
+    case "not_needed":
+      return "Filter Not Needed";
+    case "recommended":
+      return "Filter Recommended";
+    case "strongly_recommended":
+      return "Filter Strongly Recommended";
+    default:
+      return "Recommendation Unavailable";
+  }
+}
+
+export function shouldBuyFilter(value: TapWaterFilterRecommendation) {
+  return value === "recommended" || value === "strongly_recommended";
+}
+
 export function formatDistanceMiles(value: number | null | undefined) {
   if (value == null || Number.isNaN(value)) {
     return "Distance unavailable";
   }
 
   return `${value.toFixed(1)} mi`;
+}
+
+export function formatLeadValue(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) {
+    return "N/A";
+  }
+
+  return `${value.toFixed(3)} mg/L`;
+}
+
+export function formatProbability(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) {
+    return "N/A";
+  }
+
+  return `${(value * 100).toFixed(0)}%`;
 }
 
 export function formatSampleDate(sample: TapWaterSample) {
@@ -97,34 +145,27 @@ export function buildFallbackNearbySummary(samples: TapWaterSample[]): TapWaterN
       sampleCount: 0,
       nearestDistanceMiles: null,
       overall: "unknown",
-      bacteria: "unknown",
-      clarity: "unknown",
-      disinfection: "unknown",
+      leadRisk: "unknown",
+      filterRecommendation: "unknown",
     };
   }
 
   const overall = maxBySeverity(
     samples.map((sample) => sample.summary.overall),
-    { normal: 1, review: 2, alert: 3 },
-    "normal",
+    { unknown: 0, normal: 1, review: 2, alert: 3 },
+    "unknown",
   );
 
-  const bacteria = maxBySeverity(
-    samples.map((sample) => sample.summary.bacteria),
-    { not_detected: 1, coliform_detected: 2, e_coli_detected: 3 },
-    "not_detected",
+  const leadRisk = maxBySeverity(
+    samples.map((sample) => sample.summary.leadRisk),
+    { unknown: 0, low: 1, elevated: 2, high: 3 },
+    "unknown",
   );
 
-  const clarity = maxBySeverity(
-    samples.map((sample) => sample.summary.clarity),
-    { normal: 1, review: 2 },
-    "normal",
-  );
-
-  const disinfection = maxBySeverity(
-    samples.map((sample) => sample.summary.disinfection),
-    { normal: 1, low_review: 2, high_alert: 3 },
-    "normal",
+  const filterRecommendation = maxBySeverity(
+    samples.map((sample) => sample.summary.filterRecommendation),
+    { unknown: 0, not_needed: 1, recommended: 2, strongly_recommended: 3 },
+    "unknown",
   );
 
   const nearestDistance = samples
@@ -136,9 +177,8 @@ export function buildFallbackNearbySummary(samples: TapWaterSample[]): TapWaterN
     sampleCount: samples.length,
     nearestDistanceMiles: nearestDistance,
     overall,
-    bacteria,
-    clarity,
-    disinfection,
+    leadRisk,
+    filterRecommendation,
   };
 }
 

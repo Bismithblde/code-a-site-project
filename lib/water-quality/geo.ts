@@ -39,24 +39,18 @@ const overallSeverity = {
   alert: 3,
 } as const;
 
-const bacteriaSeverity = {
+const leadRiskSeverity = {
   unknown: 0,
-  not_detected: 1,
-  coliform_detected: 2,
-  e_coli_detected: 3,
+  low: 1,
+  elevated: 2,
+  high: 3,
 } as const;
 
-const claritySeverity = {
+const filterSeverity = {
   unknown: 0,
-  normal: 1,
-  review: 2,
-} as const;
-
-const disinfectionSeverity = {
-  unknown: 0,
-  normal: 1,
-  low_review: 2,
-  high_alert: 3,
+  not_needed: 1,
+  recommended: 2,
+  strongly_recommended: 3,
 } as const;
 
 function maxBySeverity<T extends string>(
@@ -77,9 +71,8 @@ export function summarizeNearbySamples(samples: NearbyWaterSample[]): NearbySumm
       sampleCount: 0,
       nearestDistanceMiles: null,
       overall: "unknown",
-      bacteria: "unknown",
-      clarity: "unknown",
-      disinfection: "unknown",
+      leadRisk: "unknown",
+      filterRecommendation: "unknown",
     };
   }
 
@@ -87,25 +80,23 @@ export function summarizeNearbySamples(samples: NearbyWaterSample[]): NearbySumm
 
   return {
     sampleCount: samples.length,
-    nearestDistanceMiles: roundDistanceMiles(samples[0].distanceMiles),
+    nearestDistanceMiles:
+      typeof samples[0]?.distanceMiles === "number"
+        ? roundDistanceMiles(samples[0].distanceMiles)
+        : null,
     overall: maxBySeverity(
       computed.map((item) => item.overall),
       overallSeverity,
       "unknown",
     ),
-    bacteria: maxBySeverity(
-      computed.map((item) => item.bacteria),
-      bacteriaSeverity,
+    leadRisk: maxBySeverity(
+      computed.map((item) => item.leadRisk),
+      leadRiskSeverity,
       "unknown",
     ),
-    clarity: maxBySeverity(
-      computed.map((item) => item.clarity),
-      claritySeverity,
-      "unknown",
-    ),
-    disinfection: maxBySeverity(
-      computed.map((item) => item.disinfection),
-      disinfectionSeverity,
+    filterRecommendation: maxBySeverity(
+      computed.map((item) => item.filterRecommendation),
+      filterSeverity,
       "unknown",
     ),
   };

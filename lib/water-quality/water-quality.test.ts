@@ -9,193 +9,114 @@ import { sortSamples } from "./service";
 
 function buildRow(overrides: Record<string, string> = {}) {
   return {
-    "Sample Number": "32317",
-    "Sample Date": "2015-01-03T00:00:00.000",
-    "Sample Time": "8:23",
-    "Sample Site": "77050",
-    "Sample class": "Compliance",
-    Location: "Queens Village",
-    "Residual Free Chlorine (mg/L)": "0.53",
-    "Turbidity (NTU)": "0.62",
-    "Fluoride (mg/L)": "",
-    "Coliform (Quanti-Tray) (MPN /100mL)": "<1",
-    "E.coli(Quanti-Tray) (MPN/100mL)": "<1",
+    "Kit ID": "15123522",
+    Borough: "Queens",
+    Zipcode: "11356",
+    "Date Collected": "02/04/2016",
+    "Date Recieved": "02/05/2016 12:00:00 AM",
+    "Lead First Draw (mg/L)": "0.003",
+    "Lead 1-2 Minute Flush (mg/L)": "0.001",
+    "Lead 5 Minute Flush (mg/L)": "",
+    "Copper First Draw (mg/L)": "0.099",
+    "Copper 1-2 Minute Flush (mg/L)": "",
+    "Copper 5 minute Flush (mg/L)": "",
     ...overrides,
   };
 }
 
-test("normalizes ISO-like sample dates and sampledAt correctly", () => {
+test("normalizes lead-at-the-tap row with ZIP and dates", () => {
   const sample = normalizeWaterSample(buildRow(), 2);
 
-  assert.equal(sample.sampleDate, "2015-01-03");
-  assert.equal(sample.sampleTime, "08:23:00");
-  assert.equal(sample.sampledAt, "2015-01-03T08:23:00");
-  assert.deepEqual(sample.issues, []);
+  assert.equal(sample.sampleNumber, "15123522");
+  assert.equal(sample.zipCode, "11356");
+  assert.equal(sample.borough, "Queens");
+  assert.equal(sample.sampleDate, "2016-02-04");
+  assert.equal(sample.dateReceived, "2016-02-05");
+  assert.equal(sample.sampledAt, "2016-02-04");
 });
 
-test("preserves <1 coliform as raw text with numeric helper and no detection warning", () => {
-  const sample = normalizeWaterSample(buildRow(), 2);
-
-  assert.equal(sample.coliformQuantiTray.raw, "<1");
-  assert.equal(sample.coliformQuantiTray.value, 1);
-  assert.equal(sample.coliformQuantiTray.comparator, "lt");
-
-  const summary = getHealthSummaryForSample(sample);
-  assert.equal(summary.status, "normal");
-  assert.deepEqual(getComputedSummaryForSample(sample), {
-    bacteria: "not_detected",
-    clarity: "normal",
-    disinfection: "normal",
-    overall: "normal",
-  });
-  assert.ok(
-    !summary.reasons.some((reason) => reason.includes("Total coliform was detected")),
-  );
-});
-
-test("parses <1 E. coli and does not mark it as detected", () => {
-  const sample = normalizeWaterSample(buildRow(), 2);
-
-  assert.equal(sample.eColiQuantiTray.raw, "<1");
-  assert.equal(sample.eColiQuantiTray.value, 1);
-  assert.equal(sample.eColiQuantiTray.comparator, "lt");
-
-  const summary = getHealthSummaryForSample(sample);
-  assert.equal(summary.status, "normal");
-  assert.equal(getComputedSummaryForSample(sample).bacteria, "not_detected");
-  assert.ok(
-    !summary.reasons.some((reason) => reason.includes("E. coli was detected")),
-  );
-});
-
-test("positive total coliform with no E. coli is a watch-level indicator, not an alert", () => {
+test("high lead sample maps to alert and strong filter recommendation", () => {
   const sample = normalizeWaterSample(
     buildRow({
-      "Coliform (Quanti-Tray) (MPN /100mL)": "1",
-      "E.coli(Quanti-Tray) (MPN/100mL)": "<1",
+      "Lead First Draw (mg/L)": "0.021",
     }),
     2,
   );
 
-  const summary = getHealthSummaryForSample(sample);
   const computed = getComputedSummaryForSample(sample);
+  const health = getHealthSummaryForSample(sample);
 
-  assert.equal(summary.status, "watch");
-  assert.equal(computed.bacteria, "coliform_detected");
-  assert.equal(computed.overall, "review");
-  assert.ok(
-    summary.reasons.some((reason) => reason.includes("does not by itself mean the water is unsafe")),
-  );
-});
-
-test("positive E. coli is an alert", () => {
-  const sample = normalizeWaterSample(
-    buildRow({
-      "E.coli(Quanti-Tray) (MPN/100mL)": "1",
-    }),
-    2,
-  );
-
-  const summary = getHealthSummaryForSample(sample);
-  const computed = getComputedSummaryForSample(sample);
-
-  assert.equal(summary.status, "alert");
-  assert.equal(computed.bacteria, "e_coli_detected");
+  assert.equal(computed.leadRisk, "high");
   assert.equal(computed.overall, "alert");
-  assert.ok(
-    summary.reasons.includes("E. coli was detected in this sample."),
-  );
+  assert.equal(computed.filterRecommendation, "strongly_recommended");
+  assert.equal(health.status, "alert");
 });
 
-test("chlorine below 0.2 mg/L is a watch-level operational review flag", () => {
+test("elevated lead sample maps to review and filter recommended", () => {
   const sample = normalizeWaterSample(
     buildRow({
-      "Residual Free Chlorine (mg/L)": "0.15",
+      "Lead First Draw (mg/L)": "0.009",
     }),
     2,
   );
 
-  const summary = getHealthSummaryForSample(sample);
   const computed = getComputedSummaryForSample(sample);
+  const health = getHealthSummaryForSample(sample);
 
-  assert.equal(summary.status, "watch");
-  assert.equal(computed.disinfection, "low_review");
+  assert.equal(computed.leadRisk, "elevated");
   assert.equal(computed.overall, "review");
-  assert.ok(
-    summary.reasons.includes(
-      "Free chlorine was below a common operational residual benchmark.",
-    ),
-  );
+  assert.equal(computed.filterRecommendation, "recommended");
+  assert.equal(health.status, "watch");
 });
 
-test("chlorine above 4.0 mg/L is an alert", () => {
+test("low lead sample maps to normal with no filter recommendation", () => {
   const sample = normalizeWaterSample(
     buildRow({
-      "Residual Free Chlorine (mg/L)": "4.2",
+      "Lead First Draw (mg/L)": "0.001",
+      "Lead 1-2 Minute Flush (mg/L)": "0.000",
     }),
     2,
   );
 
-  const summary = getHealthSummaryForSample(sample);
   const computed = getComputedSummaryForSample(sample);
+  const health = getHealthSummaryForSample(sample);
 
-  assert.equal(summary.status, "alert");
-  assert.equal(computed.disinfection, "high_alert");
-  assert.equal(computed.overall, "alert");
-  assert.ok(
-    summary.reasons.includes(
-      "Free chlorine exceeded the EPA maximum residual disinfectant level.",
-    ),
-  );
+  assert.equal(computed.leadRisk, "low");
+  assert.equal(computed.overall, "normal");
+  assert.equal(computed.filterRecommendation, "not_needed");
+  assert.equal(health.status, "normal");
 });
 
-test("turbidity stays a review heuristic and not a fake regulatory violation", () => {
+test("missing lead values maps to unknown", () => {
   const sample = normalizeWaterSample(
     buildRow({
-      "Turbidity (NTU)": "1.4",
+      "Lead First Draw (mg/L)": "",
+      "Lead 1-2 Minute Flush (mg/L)": "",
+      "Lead 5 Minute Flush (mg/L)": "",
     }),
     2,
   );
 
-  const summary = getHealthSummaryForSample(sample);
   const computed = getComputedSummaryForSample(sample);
+  const health = getHealthSummaryForSample(sample);
 
-  assert.equal(summary.status, "watch");
-  assert.equal(computed.clarity, "review");
-  assert.equal(computed.overall, "review");
-  assert.ok(
-    summary.reasons.includes("Turbidity was higher than a typical review level."),
-  );
-  assert.ok(
-    !summary.reasons.some((reason) => reason.toLowerCase().includes("unsafe")),
-  );
+  assert.equal(computed.leadRisk, "unknown");
+  assert.equal(computed.overall, "unknown");
+  assert.equal(health.status, "unknown");
 });
 
-test("keeps sampleNumber null and uses stable row fallback id when sample number is missing", () => {
-  const sample = normalizeWaterSample(
-    buildRow({
-      "Sample Number": "",
-    }),
-    42,
-  );
-
-  assert.equal(sample.sampleNumber, null);
-  assert.equal(sample.id, "row-42");
-  assert.ok(sample.issues.includes("Missing sample number"));
-});
-
-test("sorts by parsed sampleDate descending", () => {
+test("sorts by sampleDate descending", () => {
   const older = normalizeWaterSample(
     buildRow({
-      "Sample Number": "100",
-      "Sample Date": "2015-01-03T00:00:00.000",
+      "Kit ID": "100",
+      "Date Collected": "01/03/2016",
     }),
     2,
   );
   const newer = normalizeWaterSample(
     buildRow({
-      "Sample Number": "101",
-      "Sample Date": "2019-10-31T00:00:00.000",
+      "Kit ID": "101",
+      "Date Collected": "10/31/2019",
     }),
     3,
   );

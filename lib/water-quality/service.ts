@@ -1,14 +1,5 @@
-import {
-  DEFAULT_PAGE_SIZE,
-  MAX_PAGE_SIZE,
-  NUMERIC_FIELDS,
-} from "./constants";
-import {
-  calculateDistanceMiles,
-  hasCoordinates,
-  roundDistanceMiles,
-  summarizeNearbySamples,
-} from "./geo";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, NUMERIC_FIELDS } from "./constants";
+import { WaterQualityValidationError } from "./errors";
 import { findNearestTextMatches } from "./match";
 import { normalizeText } from "./normalize";
 import {
@@ -16,10 +7,9 @@ import {
   getHealthSummaryForSample,
   summarizeSamples,
 } from "./summary";
-import { resolveZipCodeOrigin } from "./zip";
+import { normalizeZipCode } from "./zip";
 import type {
   NearbyQueryResult,
-  NearbyWaterSample,
   NumericFieldKey,
   NearestMatch,
   QueryResult,
@@ -50,12 +40,170 @@ function coercePageSize(value: number | undefined) {
   return Math.min(Math.floor(value), MAX_PAGE_SIZE);
 }
 
-function coerceNearestLimit(value: number | undefined) {
+function coerceLimit(value: number | undefined) {
   if (!value || Number.isNaN(value) || value < 1) {
     return 5;
   }
 
-  return Math.min(Math.floor(value), 25);
+  return Math.min(Math.floor(value), 100);
+}
+
+function toTimestamp(sample: WaterSample) {
+  const source = sample.sampledAt ?? sample.sampleDate;
+  if (!source) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  const parsed = Date.parse(source);
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
+function getRecencyWeights(samples: WaterSample[]) {
+  if (samples.length === 0) {
+    return [];
+  }
+
+  const ranked = samples
+    .map((sample, index) => ({ sample, index, timestamp: toTimestamp(sample) }))
+    .sort(
+      (left, right) =>
+        left.timestamp - right.timestamp ||
+        left.index - right.index,
+    );
+
+  const weights = new Array<number>(samples.length).fill(1);
+  ranked.forEach((item, rank) => {
+    weights[item.index] = rank + 1;
+  });
+
+  return weights;
+}
+
+function weightedAverage(
+  values: Array<number | null>,
+  weights: number[],
+) {
+  let totalWeight = 0;
+  let totalValue = 0;
+
+  values.forEach((value, index) => {
+    if (value == null) {
+      return;
+    }
+    const weight = weights[index] ?? 1;
+    totalWeight += weight;
+    totalValue += value * weight;
+  });
+
+  if (totalWeight === 0) {
+    return null;
+  }
+
+  return totalValue / totalWeight;
+}
+
+function toProbabilityDistribution(samples: WaterSample[], weights: number[]) {
+  const totals = {
+    low: 0,
+    elevated: 0,
+    high: 0,
+    unknown: 0,
+  };
+
+  let totalWeight = 0;
+
+  samples.forEach((sample, index) => {
+    const weight = weights[index] ?? 1;
+    const risk = getComputedSummaryForSample(sample).leadRisk;
+    totals[risk] += weight;
+    totalWeight += weight;
+  });
+
+  if (totalWeight === 0) {
+    return totals;
+  }
+
+  return {
+    low: totals.low / totalWeight,
+    elevated: totals.elevated / totalWeight,
+    high: totals.high / totalWeight,
+    unknown: totals.unknown / totalWeight,
+  };
+}
+
+export function buildProbabilitySummary(samples: WaterSample[]) {
+  if (samples.length === 0) {
+    return {
+      sampleCount: 0,
+      nearestDistanceMiles: null,
+      overall: "unknown" as const,
+      leadRisk: "unknown" as const,
+      filterRecommendation: "unknown" as const,
+      averageLeadFirstDrawMgL: null,
+      averageLeadFlushOneToTwoMgL: null,
+      averageLeadFlushFiveMgL: null,
+      leadRiskDistribution: {
+        low: 0,
+        elevated: 0,
+        high: 0,
+        unknown: 0,
+      },
+    };
+  }
+
+  const weights = getRecencyWeights(samples);
+  const distribution = toProbabilityDistribution(samples, weights);
+  const expectedSeverity =
+    distribution.low * 1 +
+    distribution.elevated * 2 +
+    distribution.high * 3;
+  const elevatedOrHigher = distribution.elevated + distribution.high;
+
+  let filterRecommendation: "not_needed" | "recommended" | "strongly_recommended" | "unknown" =
+    "not_needed";
+  let overall: "normal" | "review" | "alert" | "unknown" = "normal";
+
+  if (distribution.high >= 0.2 || expectedSeverity >= 2.3) {
+    filterRecommendation = "strongly_recommended";
+    overall = "alert";
+  } else if (elevatedOrHigher >= 0.35 || expectedSeverity >= 1.5) {
+    filterRecommendation = "recommended";
+    overall = "review";
+  } else if (distribution.low === 0 && distribution.unknown > 0) {
+    filterRecommendation = "unknown";
+    overall = "unknown";
+  }
+
+  const leadRisk =
+    distribution.high >= distribution.elevated &&
+    distribution.high >= distribution.low
+      ? "high"
+      : distribution.elevated >= distribution.low
+        ? "elevated"
+        : distribution.low > 0
+          ? "low"
+          : "unknown";
+
+  return {
+    sampleCount: samples.length,
+    nearestDistanceMiles: null,
+    overall,
+    leadRisk,
+    filterRecommendation,
+    averageLeadFirstDrawMgL: weightedAverage(
+      samples.map((sample) => sample.leadFirstDraw.value),
+      weights,
+    ),
+    averageLeadFlushOneToTwoMgL: weightedAverage(
+      samples.map((sample) => sample.leadFlushOneToTwo.value),
+      weights,
+    ),
+    averageLeadFlushFiveMgL: weightedAverage(
+      samples.map((sample) => sample.leadFlushFive.value),
+      weights,
+    ),
+    leadRiskDistribution: distribution,
+  };
 }
 
 function compareNullableStrings(left: string | null, right: string | null) {
@@ -95,14 +243,11 @@ export function sortSamples(
         case "sampleDate":
           comparison = compareNullableStrings(left.sampleDate, right.sampleDate);
           break;
-        case "sampleSite":
-          comparison = compareNullableStrings(left.sampleSite, right.sampleSite);
+        case "zipCode":
+          comparison = compareNullableStrings(left.zipCode, right.zipCode);
           break;
-        case "location":
-          comparison = compareNullableStrings(left.location, right.location);
-          break;
-        case "sampleClass":
-          comparison = compareNullableStrings(left.sampleClass, right.sampleClass);
+        case "borough":
+          comparison = compareNullableStrings(left.borough, right.borough);
           break;
         case "sampleNumber":
         default:
@@ -115,17 +260,11 @@ export function sortSamples(
       return comparison * direction;
     }
 
-    return (left.sampleNumber ?? left.id).localeCompare(
-      right.sampleNumber ?? right.id,
-    ) * direction;
+    return (left.sampleNumber ?? left.id).localeCompare(right.sampleNumber ?? right.id) * direction;
   });
 }
 
-function applyDateRange(
-  samples: WaterSample[],
-  dateFrom?: string,
-  dateTo?: string,
-) {
+function applyDateRange(samples: WaterSample[], dateFrom?: string, dateTo?: string) {
   return samples.filter((sample) => {
     if (dateFrom && sample.sampleDate && sample.sampleDate < dateFrom) {
       return false;
@@ -158,7 +297,6 @@ function applyContaminantFilters(
       }
 
       const value = sample[field as NumericFieldKey].value;
-
       if (value == null) {
         return false;
       }
@@ -177,17 +315,27 @@ function applyContaminantFilters(
 }
 
 function buildNearestMatches(
-  query: Pick<WaterSampleFilters, "sampleSite" | "locationText">,
+  query: Pick<WaterSampleFilters, "zipCode" | "borough" | "locationText">,
   samples: WaterSample[],
 ) {
   const matches: NearestMatch[] = [];
 
-  if (query.sampleSite) {
+  if (query.zipCode) {
     matches.push(
       ...findNearestTextMatches(
-        query.sampleSite,
-        samples.map((sample) => sample.sampleSite).filter(Boolean) as string[],
-        "sampleSite",
+        query.zipCode,
+        samples.map((sample) => sample.zipCode).filter(Boolean) as string[],
+        "zipCode",
+      ),
+    );
+  }
+
+  if (query.borough) {
+    matches.push(
+      ...findNearestTextMatches(
+        query.borough,
+        samples.map((sample) => sample.borough).filter(Boolean) as string[],
+        "borough",
       ),
     );
   }
@@ -209,57 +357,36 @@ function filterSamples(
   samples: WaterSample[],
   filters: Pick<
     WaterSampleFilters,
-    "sampleSite" | "locationText" | "sampleClass" | "dateFrom" | "dateTo" | "contaminants"
+    "zipCode" | "borough" | "locationText" | "dateFrom" | "dateTo" | "contaminants"
   >,
 ) {
   let filtered = samples;
   const nearestMatches: NearestMatch[] = [];
 
-  if (filters.sampleSite) {
-    const normalizedSite = normalizeText(filters.sampleSite);
-    filtered = filtered.filter(
-      (sample) => sample.sampleSiteNormalized === normalizedSite,
-    );
+  if (filters.zipCode) {
+    const normalizedZip = normalizeText(filters.zipCode);
+    filtered = filtered.filter((sample) => sample.zipCodeNormalized === normalizedZip);
+  }
 
-    if (filtered.length === 0) {
-      nearestMatches.push(
-        ...findNearestTextMatches(
-          filters.sampleSite,
-          samples.map((sample) => sample.sampleSite).filter(Boolean) as string[],
-          "sampleSite",
-        ),
-      );
-    }
+  if (filters.borough) {
+    const normalizedBorough = normalizeText(filters.borough);
+    filtered = filtered.filter((sample) => sample.boroughNormalized === normalizedBorough);
   }
 
   if (filters.locationText) {
     const normalizedLocation = normalizeText(filters.locationText);
-    filtered = filtered.filter((sample) =>
-      sample.locationNormalized.includes(normalizedLocation),
-    );
-
-    if (filtered.length === 0) {
-      nearestMatches.push(
-        ...findNearestTextMatches(
-          filters.locationText,
-          samples.map((sample) => sample.location).filter(Boolean) as string[],
-          "location",
-        ),
-      );
-    }
-  }
-
-  if (filters.sampleClass) {
-    const normalizedClass = normalizeText(filters.sampleClass);
     filtered = filtered.filter(
-      (sample) => sample.sampleClassNormalized === normalizedClass,
+      (sample) =>
+        sample.locationNormalized.includes(normalizedLocation) ||
+        sample.boroughNormalized.includes(normalizedLocation) ||
+        sample.zipCodeNormalized.includes(normalizedLocation),
     );
   }
 
   filtered = applyDateRange(filtered, filters.dateFrom, filters.dateTo);
   filtered = applyContaminantFilters(filtered, filters.contaminants);
 
-  if (filtered.length === 0 && nearestMatches.length === 0) {
+  if (filtered.length === 0) {
     nearestMatches.push(...buildNearestMatches(filters, samples));
   }
 
@@ -269,29 +396,6 @@ function filterSamples(
 export async function getSampleByNumber(sampleNumber: string) {
   const dataset = await loadWaterDataset();
   return dataset.bySampleNumber.get(sampleNumber) ?? null;
-}
-
-export function findNearestSamplesFromOrigin(
-  samples: WaterSample[],
-  latitude: number,
-  longitude: number,
-  limit = 5,
-) {
-  const origin = { latitude, longitude };
-  const nearestLimit = coerceNearestLimit(limit);
-
-  return samples
-    .filter(hasCoordinates)
-    .map<NearbyWaterSample>((sample) => ({
-      ...sample,
-      distanceMiles: calculateDistanceMiles(origin, sample),
-    }))
-    .sort(
-      (left, right) =>
-        left.distanceMiles - right.distanceMiles ||
-        (left.sampleNumber ?? left.id).localeCompare(right.sampleNumber ?? right.id),
-    )
-    .slice(0, nearestLimit);
 }
 
 export async function querySamples(
@@ -325,33 +429,50 @@ export async function querySamples(
 export async function querySamplesByZip(
   filters: WaterSampleFilters,
 ): Promise<NearbyQueryResult> {
-  const origin = resolveZipCodeOrigin(filters.zip);
+  const zip = normalizeZipCode(filters.zip);
+
+  if (!zip || !/^\d{5}$/.test(zip)) {
+    throw new WaterQualityValidationError(
+      "ZIP code must be a valid 5-digit NYC ZIP code.",
+    );
+  }
+
   const dataset = await loadWaterDataset();
-  const nearestSamples = findNearestSamplesFromOrigin(
-    dataset.records,
-    origin.latitude,
-    origin.longitude,
-    filters.limit,
-  );
+  const matching = dataset.records.filter((sample) => sample.zipCode === zip);
+  const sorted = sortSamples(matching, "sampleDate", "desc");
+  const limited = sorted.slice(0, coerceLimit(filters.limit));
+  const summarized = limited.map((sample) => ({ ...sample }));
+
+  /*
+   * Previous ZIP nearest path (kept for restore):
+   * const origin = resolveZipCodeOrigin(filters.zip);
+   * const nearestSamples = findNearestSamplesFromOrigin(
+   *   dataset.records,
+   *   origin.latitude,
+   *   origin.longitude,
+   *   filters.limit,
+   * );
+   */
+
+  const nearbySummary = buildProbabilitySummary(matching);
 
   return {
-    data: nearestSamples,
+    data: summarized,
     meta: {
-      zip: origin.zip,
-      origin: {
-        latitude: origin.latitude,
-        longitude: origin.longitude,
-      },
-      count: nearestSamples.length,
-      total: nearestSamples.length,
+      zip,
+      count: summarized.length,
+      total: matching.length,
       page: 1,
-      pageSize: nearestSamples.length,
-      totalPages: nearestSamples.length > 0 ? 1 : 0,
-      sortBy: "distanceMiles",
-      sortDir: "asc",
+      pageSize: summarized.length,
+      totalPages: summarized.length > 0 ? 1 : 0,
+      sortBy: "sampleDate",
+      sortDir: "desc",
       nearestMatches: [],
     },
-    nearbySummary: summarizeNearbySamples(nearestSamples),
+    nearbySummary: {
+      ...nearbySummary,
+      sampleCount: matching.length,
+    },
   };
 }
 
@@ -360,20 +481,15 @@ export async function getRecentSamples(limit = 10) {
   return sortSamples(dataset.records, "sampleDate", "desc").slice(0, limit);
 }
 
-export async function getSummary(
-  filters: WaterSampleFilters,
-): Promise<SummaryResult> {
+export async function getSummary(filters: WaterSampleFilters): Promise<SummaryResult> {
   const dataset = await loadWaterDataset();
   const { filtered } = filterSamples(dataset.records, filters);
-
   return summarizeSamples(dataset.records, filtered);
 }
 
-export function serializeSample(sample: WaterSample | NearbyWaterSample) {
+export function serializeSample(sample: WaterSample) {
   return {
     ...sample,
-    distanceMiles:
-      "distanceMiles" in sample ? roundDistanceMiles(sample.distanceMiles) : undefined,
     summary: getComputedSummaryForSample(sample),
     healthSummary: getHealthSummaryForSample(sample),
   };

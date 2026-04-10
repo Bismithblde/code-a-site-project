@@ -11,49 +11,55 @@ const successPayload = {
       id: "sample-77050",
       sampleNumber: "77050",
       sampleDate: "2015-01-03",
-      sampleTime: "11:32:00",
+      sampleTime: null,
       sampledAt: "2015-01-03T11:32:00",
-      sampleSite: "77050",
-      sampleClass: "Compliance",
-      location:
-        "SS - IFO 93-40 E/S 217th St, S/O 94th Ave, IFO Queens Village Branch.",
-      latitude: 40.7182,
-      longitude: -73.7381,
-      distanceMiles: 8.4,
+      dateReceived: "2015-01-04",
+      zipCode: "11356",
+      borough: "Queens",
+      location: "Queens • 11356",
+      latitude: null,
+      longitude: null,
+      leadFirstDraw: { raw: "0.019", value: 0.019, comparator: "eq", parseError: null },
+      leadFlushOneToTwo: { raw: "0.004", value: 0.004, comparator: "eq", parseError: null },
+      leadFlushFive: { raw: null, value: null, comparator: null, parseError: null },
+      copperFirstDraw: { raw: "0.313", value: 0.313, comparator: "eq", parseError: null },
+      copperFlushOneToTwo: { raw: "0.043", value: 0.043, comparator: "eq", parseError: null },
+      copperFlushFive: { raw: null, value: null, comparator: null, parseError: null },
       summary: {
-        bacteria: "not_detected",
-        clarity: "normal",
-        disinfection: "normal",
-        overall: "normal",
+        leadRisk: "high",
+        overall: "alert",
+        filterRecommendation: "strongly_recommended",
       },
       healthSummary: {
-        status: "normal",
-        reasons: ["No coliform or E. coli were detected in this sample."],
+        status: "alert",
+        reasons: ["Lead is at or above the EPA 0.015 mg/L action level."],
       },
     },
   ],
   meta: {
     zip: "11356",
-    origin: {
-      latitude: 40.7851,
-      longitude: -73.846,
-    },
     count: 1,
     total: 1,
     page: 1,
     pageSize: 1,
     totalPages: 1,
-    sortBy: "distanceMiles",
-    sortDir: "asc",
+    sortBy: "sampleDate",
+    sortDir: "desc",
     nearestMatches: [],
   },
   nearbySummary: {
     sampleCount: 1,
-    nearestDistanceMiles: 8.4,
-    overall: "normal",
-    bacteria: "not_detected",
-    clarity: "normal",
-    disinfection: "normal",
+    nearestDistanceMiles: null,
+    overall: "alert",
+    leadRisk: "high",
+    filterRecommendation: "strongly_recommended",
+    averageLeadFirstDrawMgL: 0.019,
+    leadRiskDistribution: {
+      low: 0,
+      elevated: 0,
+      high: 1,
+      unknown: 0,
+    },
   },
 };
 
@@ -84,7 +90,7 @@ test("renders initial idle state", async () => {
     assert.ok(view.getByText("NYC Tap Water Lookup"));
     assert.ok(
       view.getByText(
-        "Enter a ZIP code to see nearest samples, distances, and a nearby health summary.",
+        "Enter a ZIP code to see lead results and a filter recommendation.",
       ),
     );
   } finally {
@@ -150,13 +156,13 @@ test("renders nearby summary and sample list on success", async () => {
 
     assert.ok(view.getByText("Nearby Summary"));
     assert.ok(view.getByText("Nearby Samples"));
-    assert.ok(view.getByText("Overall: Normal"));
-    assert.ok(
-      view.getByText(
-        "SS - IFO 93-40 E/S 217th St, S/O 94th Ave, IFO Queens Village Branch.",
-      ),
-    );
-    assert.ok(view.getAllByText("8.4 mi").length >= 1);
+    assert.ok(view.getByText("Overall: Alert"));
+    assert.ok(view.getByText("ZIP 11356"));
+    assert.ok(view.getAllByText("Filter Strongly Recommended").length >= 1);
+    assert.ok(view.getByText("Should Buy Filter"));
+    assert.ok(view.getByText("Yes"));
+    assert.ok(view.getAllByText("0.019 mg/L").length >= 1);
+    assert.ok(view.getByText("100%"));
   } finally {
     cleanup();
     teardown();
@@ -175,23 +181,28 @@ test("renders empty state when no samples are returned", async () => {
           data: [],
           meta: {
             zip: "11356",
-            origin: { latitude: 40.7851, longitude: -73.846 },
             count: 0,
             total: 0,
             page: 1,
             pageSize: 0,
             totalPages: 0,
-            sortBy: "distanceMiles",
-            sortDir: "asc",
+            sortBy: "sampleDate",
+            sortDir: "desc",
             nearestMatches: [],
           },
           nearbySummary: {
             sampleCount: 0,
             nearestDistanceMiles: null,
             overall: "unknown",
-            bacteria: "unknown",
-            clarity: "unknown",
-            disinfection: "unknown",
+            leadRisk: "unknown",
+            filterRecommendation: "unknown",
+            averageLeadFirstDrawMgL: null,
+            leadRiskDistribution: {
+              low: 0,
+              elevated: 0,
+              high: 0,
+              unknown: 0,
+            },
           },
         })}
       />,
@@ -199,7 +210,7 @@ test("renders empty state when no samples are returned", async () => {
 
     assert.ok(
       view.getByText(
-        "No samples matched this search yet. Try another ZIP code or broader location.",
+        "No lead-at-the-tap samples were found for this ZIP code yet.",
       ),
     );
   } finally {
@@ -252,7 +263,7 @@ test("supports search submit interactions", async () => {
 
     fireEvent.click(view.getByRole("button", { name: "Search" }));
     fireEvent.submit(
-      view.getByPlaceholderText("Enter ZIP code or location").closest("form") as HTMLFormElement,
+      view.getByPlaceholderText("Enter ZIP code").closest("form") as HTMLFormElement,
     );
 
     assert.equal(submitCalls, 2);

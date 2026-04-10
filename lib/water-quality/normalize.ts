@@ -1,6 +1,5 @@
 import {
   SOURCE_COLUMNS,
-  SOURCE_COLUMN_ALIASES,
 } from "./constants";
 import type {
   NumericComparator,
@@ -51,7 +50,7 @@ function normalizeDate(rawValue: string | undefined, issues: string[]) {
     return `${year}-${pad(month)}-${pad(day)}`;
   }
 
-  const usMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  const usMatch = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+.*)?$/);
   if (usMatch) {
     const [, month, day, rawYear] = usMatch;
     let year = rawYear;
@@ -190,17 +189,23 @@ export function normalizeWaterSample(
 ): WaterSample {
   const issues: string[] = [];
   const sampleNumber = cleanString(row[SOURCE_COLUMNS.sampleNumber]);
-  const sampleDate = normalizeDate(
-    readSourceValue(row, SOURCE_COLUMNS.sampleDate),
-    issues,
-  );
-  const sampleTime = normalizeTime(row[SOURCE_COLUMNS.sampleTime], issues);
-  const sampleSite = cleanString(row[SOURCE_COLUMNS.sampleSite]);
-  const sampleClass = cleanString(row[SOURCE_COLUMNS.sampleClass]);
-  const location = cleanString(row[SOURCE_COLUMNS.location]);
+  const sampleDate = normalizeDate(row[SOURCE_COLUMNS.sampleDate], issues);
+  const dateReceived = normalizeDate(row[SOURCE_COLUMNS.dateReceived], issues);
+  const borough = cleanString(row[SOURCE_COLUMNS.borough]);
+  const zipCodeRaw = cleanString(row[SOURCE_COLUMNS.zipCode]);
+  const zipCode =
+    zipCodeRaw && /^\d{5}$/.test(zipCodeRaw) && zipCodeRaw !== "00000"
+      ? zipCodeRaw
+      : null;
+  const sampleTime = null;
+  const location = [borough, zipCode].filter(Boolean).join(" • ") || null;
 
   if (!sampleNumber) {
     issues.push("Missing sample number");
+  }
+
+  if (!zipCode && zipCodeRaw) {
+    issues.push(`Invalid ZIP code "${zipCodeRaw}"`);
   }
 
   const sampledAt =
@@ -212,41 +217,43 @@ export function normalizeWaterSample(
     sampleDate,
     sampleTime,
     sampledAt,
-    sampleSite,
-    sampleClass,
+    dateReceived,
+    zipCode,
+    borough,
     location,
+    zipCodeNormalized: normalizeText(zipCode),
+    boroughNormalized: normalizeText(borough),
     locationNormalized: normalizeText(location),
-    sampleSiteNormalized: normalizeText(sampleSite),
-    sampleClassNormalized: normalizeText(sampleClass),
     latitude: null,
     longitude: null,
-    residualFreeChlorine: parseNumericMeasurement(
-      row[SOURCE_COLUMNS.residualFreeChlorine],
-      SOURCE_COLUMNS.residualFreeChlorine,
+    leadFirstDraw: parseNumericMeasurement(
+      row[SOURCE_COLUMNS.leadFirstDraw],
+      SOURCE_COLUMNS.leadFirstDraw,
       issues,
     ),
-    turbidity: parseNumericMeasurement(
-      row[SOURCE_COLUMNS.turbidity],
-      SOURCE_COLUMNS.turbidity,
+    leadFlushOneToTwo: parseNumericMeasurement(
+      row[SOURCE_COLUMNS.leadFlushOneToTwo],
+      SOURCE_COLUMNS.leadFlushOneToTwo,
       issues,
     ),
-    fluoride: parseNumericMeasurement(
-      row[SOURCE_COLUMNS.fluoride],
-      SOURCE_COLUMNS.fluoride,
+    leadFlushFive: parseNumericMeasurement(
+      row[SOURCE_COLUMNS.leadFlushFive],
+      SOURCE_COLUMNS.leadFlushFive,
       issues,
     ),
-    coliformQuantiTray: parseNumericMeasurement(
-      row[SOURCE_COLUMNS.coliformQuantiTray],
-      SOURCE_COLUMNS.coliformQuantiTray,
+    copperFirstDraw: parseNumericMeasurement(
+      row[SOURCE_COLUMNS.copperFirstDraw],
+      SOURCE_COLUMNS.copperFirstDraw,
       issues,
     ),
-    eColiQuantiTray: parseNumericMeasurement(
-      readSourceValue(
-        row,
-        SOURCE_COLUMNS.eColiQuantiTray,
-        SOURCE_COLUMN_ALIASES.eColiQuantiTray,
-      ),
-      SOURCE_COLUMNS.eColiQuantiTray,
+    copperFlushOneToTwo: parseNumericMeasurement(
+      row[SOURCE_COLUMNS.copperFlushOneToTwo],
+      SOURCE_COLUMNS.copperFlushOneToTwo,
+      issues,
+    ),
+    copperFlushFive: parseNumericMeasurement(
+      readSourceValue(row, SOURCE_COLUMNS.copperFlushFive, []),
+      SOURCE_COLUMNS.copperFlushFive,
       issues,
     ),
     raw: row,
