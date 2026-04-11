@@ -1,7 +1,6 @@
 "use client";
 
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+import { useMemo, useState } from "react";
 
 interface WaterSystem {
   pwsid: string;
@@ -48,7 +47,7 @@ function getSystemPosition(
 
   // Spread markers in a spiral pattern around the center
   const angle = (index / total) * Math.PI * 2 + (hash % 100) / 100;
-  const radius = 0.3 + (hash % 1000) / 1000 * 1.5; // 0.3 to 1.8 degrees spread
+  const radius = 0.3 + ((hash % 1000) / 1000) * 1.5; // 0.3 to 1.8 degrees spread
 
   return [
     center[0] + Math.cos(angle) * radius,
@@ -66,89 +65,91 @@ function getMarkerRadius(populationServed: number | null): number {
 }
 
 export default function WaterQualityMapInner({ systems, center, zoom }: Props) {
-  return (
-    <MapContainer
-      center={center}
-      zoom={zoom}
-      scrollWheelZoom={false}
-      className="w-full h-[400px] z-0"
-      style={{ background: "#0a1628" }}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-      />
+  const [selectedPwsid, setSelectedPwsid] = useState<string | null>(null);
 
-      {systems.map((system, index) => {
-        const position = getSystemPosition(system, center, index, systems.length);
+  const positionedSystems = useMemo(() => {
+    return systems.map((system, index) => {
+      const [lat, lng] = getSystemPosition(system, center, index, systems.length);
+      // Map pseudo coordinates into a visible 0-100% viewport.
+      const x = Math.max(3, Math.min(97, 50 + ((lng - center[1]) * 18) / Math.max(1, zoom)));
+      const y = Math.max(6, Math.min(94, 50 - ((lat - center[0]) * 22) / Math.max(1, zoom)));
+      return { system, x, y };
+    });
+  }, [systems, center, zoom]);
+
+  const selected = selectedPwsid
+    ? systems.find((system) => system.pwsid === selectedPwsid) ?? null
+    : null;
+
+  return (
+    <div className="w-full h-[400px] z-0 relative overflow-hidden bg-[#0a1628]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.2),transparent_55%),radial-gradient(circle_at_80%_70%,rgba(14,116,144,0.22),transparent_55%),linear-gradient(180deg,#0c1f34_0%,#0a1628_100%)]" />
+      <div className="absolute inset-0 opacity-25 [background-size:40px_40px] [background-image:linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)]" />
+
+      {positionedSystems.map(({ system, x, y }) => {
         const color = statusColors[system.status];
-        const radius = getMarkerRadius(system.populationServed);
+        const size = getMarkerRadius(system.populationServed) * 2;
+        const selectedMarker = selectedPwsid === system.pwsid;
 
         return (
-          <CircleMarker
+          <button
+            type="button"
             key={system.pwsid}
-            center={position}
-            radius={radius}
-            pathOptions={{
-              color,
-              fillColor: color,
-              fillOpacity: 0.6,
-              weight: 2,
-              opacity: 0.8,
+            className="absolute rounded-full border border-white/30 shadow-[0_0_0_2px_rgba(0,0,0,0.2)] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+            style={{
+              left: `${x}%`,
+              top: `${y}%`,
+              width: `${size}px`,
+              height: `${size}px`,
+              transform: "translate(-50%, -50%)",
+              backgroundColor: color,
+              opacity: selectedMarker ? 1 : 0.85,
+              boxShadow: selectedMarker
+                ? `0 0 0 3px ${color}66, 0 0 24px ${color}88`
+                : `0 0 0 1px ${color}66`,
             }}
+            onClick={() => setSelectedPwsid(system.pwsid)}
+            title={`${system.name} (${system.pwsid})`}
           >
-            <Popup>
-              <div className="min-w-[200px] text-sm">
-                <h4 className="font-bold text-foreground mb-1">{system.name}</h4>
-                <p className="text-xs text-muted-foreground mb-2">
-                  {system.citiesServed ?? system.countiesServed ?? "Unknown area"} · {system.source}
-                </p>
-
-                <div className="space-y-1 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Population:</span>
-                    <span className="font-medium">
-                      {system.populationServed?.toLocaleString() ?? "N/A"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Status:</span>
-                    <span
-                      className="font-semibold"
-                      style={{ color }}
-                    >
-                      {system.status === "alert"
-                        ? "Violations"
-                        : system.status === "watch"
-                          ? "Under Review"
-                          : "Compliant"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Violations (3yr):</span>
-                    <span className="font-medium">{system.rulesViolated3yr}</span>
-                  </div>
-                  {system.leadViolation && (
-                    <p className="text-red-500 font-semibold mt-1">Lead violation detected</p>
-                  )}
-                  {system.copperViolation && (
-                    <p className="text-red-500 font-semibold">Copper violation detected</p>
-                  )}
-                </div>
-
-                <a
-                  href={system.detailUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block mt-2 text-xs text-blue-500 hover:underline"
-                >
-                  View EPA Report →
-                </a>
-              </div>
-            </Popup>
-          </CircleMarker>
+            <span className="sr-only">View details for {system.name}</span>
+          </button>
         );
       })}
-    </MapContainer>
+
+      <div className="absolute left-3 top-3 rounded-md border border-white/15 bg-black/30 px-2 py-1 text-[11px] text-white/75 backdrop-blur-sm">
+        Interactive coverage map
+      </div>
+
+      <div className="absolute right-3 bottom-3 w-[min(92%,340px)] rounded-lg border border-white/15 bg-[#071322]/92 p-3 text-white shadow-xl backdrop-blur-sm">
+        {selected ? (
+          <div className="space-y-1.5 text-xs">
+            <h4 className="text-sm font-semibold text-white">{selected.name}</h4>
+            <p className="text-white/70">
+              {selected.citiesServed ?? selected.countiesServed ?? "Unknown area"} | {selected.source}
+            </p>
+            <p className="text-white/70">
+              Population: {selected.populationServed?.toLocaleString() ?? "N/A"}
+            </p>
+            <p className="text-white/70">Violations (3yr): {selected.rulesViolated3yr}</p>
+            {selected.leadViolation ? (
+              <p className="font-semibold text-red-300">Lead violation detected</p>
+            ) : null}
+            {selected.copperViolation ? (
+              <p className="font-semibold text-red-300">Copper violation detected</p>
+            ) : null}
+            <a
+              href={selected.detailUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block pt-1 text-sky-300 hover:text-sky-200 hover:underline"
+            >
+              View EPA report
+            </a>
+          </div>
+        ) : (
+          <p className="text-xs text-white/75">Select a marker to view system details.</p>
+        )}
+      </div>
+    </div>
   );
 }

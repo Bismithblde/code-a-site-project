@@ -1,8 +1,11 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Droplets, Scale, Activity } from "lucide-react";
+import { Home, Droplets, Scale, Activity, LogIn, UserPlus } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 import { type ComponentType } from "react";
 
 interface NavTab {
@@ -11,15 +14,39 @@ interface NavTab {
   icon: ComponentType<{ className?: string }>;
 }
 
-const tabs: NavTab[] = [
+const authenticatedTabs: NavTab[] = [
   { label: "Home", href: "/", icon: Home },
   { label: "Brands", href: "/brands", icon: Droplets },
   { label: "Compare", href: "/compare", icon: Scale },
   { label: "Tracker", href: "/tracker", icon: Activity },
 ];
 
+const guestTabs: NavTab[] = [
+  { label: "Home", href: "/", icon: Home },
+  { label: "Create", href: "/register", icon: UserPlus },
+  { label: "Login", href: "/login", icon: LogIn },
+];
+
 export function BottomNav() {
   const pathname = usePathname();
+  const [user, setUser] = useState<User | null>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [supabase.auth]);
+
+  const tabs = user ? authenticatedTabs : guestTabs;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-background/90 backdrop-blur-lg border-t border-border pb-[env(safe-area-inset-bottom)]">
