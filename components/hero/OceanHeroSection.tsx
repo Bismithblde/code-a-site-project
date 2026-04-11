@@ -217,10 +217,10 @@ export function OceanHeroSection() {
             className="relative text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black tracking-tight text-center block"
             style={{
               fontFamily: "var(--font-nunito), Nunito, system-ui, sans-serif",
-              opacity: waterOpacity,
               transform: `scale(${waterScale})`,
-              color: "rgba(255, 255, 255, 0.06)",
-              textShadow: "0 0 2px rgba(255,255,255,0.4), 0 0 5px rgba(255,255,255,0.15), 0 0 10px rgba(255,255,255,0.08)",
+              color: "white",
+              opacity: 0.3,
+              textShadow: "0 0 2px rgba(255,255,255,0.8), 0 0 5px rgba(255,255,255,0.4), 0 0 10px rgba(255,255,255,0.2)",
             }}
           >
             Water
