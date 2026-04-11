@@ -4,23 +4,23 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
-/* ── Bottle data — all 15 brands ── */
+/* ── Bottle data — all 15 brands with slugs for linking ── */
 const bottles = [
-  { name: "Evian", origin: "France · Still", image: "/images/evian.png" },
-  { name: "Fiji", origin: "Fiji · Still", image: "/images/fiji.png" },
-  { name: "Gerolsteiner", origin: "Germany · Sparkling", image: "/images/gerolsteiner.png" },
-  { name: "San Pellegrino", origin: "Italy · Sparkling", image: "/images/san-pellegrino.png" },
-  { name: "Perrier", origin: "France · Sparkling", image: "/images/perrier.png" },
-  { name: "Voss", origin: "Norway · Still & Sparkling", image: "/images/voss.png" },
-  { name: "Essentia", origin: "USA · Still", image: "/images/essentia.png" },
-  { name: "Smartwater", origin: "USA · Still", image: "/images/smartwater.png" },
-  { name: "Topo Chico", origin: "Mexico · Sparkling", image: "/images/topo-chico.png" },
-  { name: "Mountain Valley", origin: "USA · Still & Sparkling", image: "/images/mountain-valley.png" },
-  { name: "Acqua Panna", origin: "Italy · Still", image: "/images/acqua-panna.png" },
-  { name: "Waiakea", origin: "Hawaii · Still", image: "/images/waiakea.png" },
-  { name: "Icelandic Glacial", origin: "Iceland · Still", image: "/images/icelandic.png" },
-  { name: "Liquid Death", origin: "USA · Still & Sparkling", image: "/images/liquid-death.png" },
-  { name: "Flow", origin: "Canada · Still", image: "/images/flow.png" },
+  { name: "Evian", slug: "evian", origin: "France · Still", image: "/images/evian.png" },
+  { name: "Fiji", slug: "fiji", origin: "Fiji · Still", image: "/images/fiji.png" },
+  { name: "Gerolsteiner", slug: "gerolsteiner", origin: "Germany · Sparkling", image: "/images/gerolsteiner.png" },
+  { name: "San Pellegrino", slug: "san-pellegrino", origin: "Italy · Sparkling", image: "/images/san-pellegrino.png" },
+  { name: "Perrier", slug: "perrier", origin: "France · Sparkling", image: "/images/perrier.png" },
+  { name: "Voss", slug: "voss", origin: "Norway · Still & Sparkling", image: "/images/voss.png" },
+  { name: "Essentia", slug: "essentia", origin: "USA · Still", image: "/images/essentia.png" },
+  { name: "Smartwater", slug: "smartwater", origin: "USA · Still", image: "/images/smartwater.png" },
+  { name: "Topo Chico", slug: "topo-chico", origin: "Mexico · Sparkling", image: "/images/topo-chico.png" },
+  { name: "Mountain Valley", slug: "mountain-valley", origin: "USA · Still & Sparkling", image: "/images/mountain-valley.png" },
+  { name: "Acqua Panna", slug: "acqua-panna", origin: "Italy · Still", image: "/images/acqua-panna.png" },
+  { name: "Waiakea", slug: "waiakea", origin: "Hawaii · Still", image: "/images/waiakea.png" },
+  { name: "Icelandic Glacial", slug: "icelandic-glacial", origin: "Iceland · Still", image: "/images/icelandic.png" },
+  { name: "Liquid Death", slug: "liquid-death", origin: "USA · Still & Sparkling", image: "/images/liquid-death.png" },
+  { name: "Flow", slug: "flow", origin: "Canada · Still", image: "/images/flow.png" },
 ];
 
 const TOTAL_FRAMES = 120;
@@ -247,20 +247,15 @@ export function OceanHeroSection() {
           </div>
         </div>
 
-        {/* ── Bottle showcase — one at a time, scroll-driven ── */}
+        {/* ── Bottle showcase — one at a time, scroll-driven, with action buttons ── */}
         <div
-          className="absolute inset-0 flex items-center justify-end pr-[5%] md:pr-[10%]"
+          className="absolute inset-0 flex items-center justify-end pr-[3%] md:pr-[8%]"
           style={{ zIndex: 8, opacity: fadeOut }}
-          aria-hidden="true"
         >
           {bottles.map((bottle, i) => {
             const isActive = i === activeBottleIndex;
             const isPast = i < activeBottleIndex;
-            const isFuture = i > activeBottleIndex;
 
-            // Entry: slide up from below + fade in (0-40% of bottle's range)
-            // Hold: visible and centered (40-70%)
-            // Exit: slide up + fade out (70-100%)
             let opacity = 0;
             let translateY = 80;
             let scale = 0.85;
@@ -268,17 +263,16 @@ export function OceanHeroSection() {
             if (isActive) {
               const entry = rangeProgress(bottleProgress, 0, 0.35);
               const exit = rangeProgress(bottleProgress, 0.7, 1);
-
               opacity = entry * (1 - exit);
               translateY = (1 - entry) * 80 + exit * -60;
               scale = 0.85 + entry * 0.15 - exit * 0.1;
             } else if (isPast) {
               opacity = 0;
               translateY = -80;
-            } else if (isFuture) {
-              opacity = 0;
-              translateY = 100;
             }
+
+            // Buttons fade in slightly after the bottle
+            const buttonOpacity = isActive ? rangeProgress(bottleProgress, 0.2, 0.45) * (1 - rangeProgress(bottleProgress, 0.75, 1)) : 0;
 
             return (
               <div
@@ -287,28 +281,54 @@ export function OceanHeroSection() {
                 style={{
                   opacity,
                   transform: `translateY(${translateY}px) scale(${scale})`,
-                  filter: "drop-shadow(0 20px 40px rgba(0,0,0,0.5))",
+                  filter: "drop-shadow(0 20px 50px rgba(0,0,0,0.5))",
                   willChange: "transform, opacity",
-                  right: "8%",
+                  right: "6%",
                 }}
               >
+                {/* Bigger bottle image */}
                 <Image
                   src={bottle.image}
                   alt={bottle.name}
-                  width={120}
-                  height={300}
-                  className="object-contain max-h-[220px] sm:max-h-[280px] md:max-h-[340px]"
+                  width={180}
+                  height={400}
+                  className="object-contain max-h-[260px] sm:max-h-[340px] md:max-h-[420px]"
                   unoptimized
                   priority={i === 0}
                 />
-                <div className="mt-4 text-center">
-                  <p className="text-lg sm:text-xl font-bold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
+
+                {/* Brand name */}
+                <div className="mt-5 text-center">
+                  <p className="text-xl sm:text-2xl font-bold text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]"
                     style={{ fontFamily: "var(--font-playfair), Georgia, serif" }}>
                     {bottle.name}
                   </p>
                   <p className="text-xs sm:text-sm text-white/50 tracking-wider uppercase mt-1">
                     {bottle.origin}
                   </p>
+                </div>
+
+                {/* Glassmorphism action buttons */}
+                <div
+                  className="mt-5 flex gap-3 pointer-events-auto"
+                  style={{ opacity: buttonOpacity }}
+                >
+                  <Link
+                    href={`/brands/${bottle.slug}`}
+                    className="px-5 py-2.5 rounded-full text-sm font-medium text-white backdrop-blur-xl border border-white/20 transition-all duration-300 hover:bg-white/20 hover:border-white/40 hover:scale-105"
+                    style={{ background: "rgba(255,255,255,0.1)" }}
+                  >
+                    View Details
+                  </Link>
+                  <a
+                    href={`/go/${bottle.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer sponsored"
+                    className="px-5 py-2.5 rounded-full text-sm font-medium text-white backdrop-blur-xl border border-white/20 transition-all duration-300 hover:bg-white/20 hover:border-white/40 hover:scale-105"
+                    style={{ background: "rgba(255,255,255,0.1)" }}
+                  >
+                    Buy on Amazon
+                  </a>
                 </div>
               </div>
             );
