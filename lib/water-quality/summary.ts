@@ -4,160 +4,128 @@ import type {
   HealthSummary,
   NumericFieldKey,
   NumericFieldStats,
-  NumericMeasurement,
   SampleComputedSummary,
   SummaryResult,
   WaterSample,
 } from "./types";
 
+const EPA_LEAD_ACTION_LEVEL_MG_L = 0.015;
+const LEAD_REVIEW_LEVEL_MG_L = 0.005;
+
 function getNumericValue(sample: WaterSample, field: NumericFieldKey) {
   return sample[field].value;
 }
 
-function indicatesDetection(measurement: NumericMeasurement) {
-  if (measurement.value == null) {
-    return false;
+function getMaxLeadValue(sample: WaterSample) {
+  const leadValues = [
+    sample.leadFirstDraw.value,
+    sample.leadFlushOneToTwo.value,
+    sample.leadFlushFive.value,
+  ].filter((value): value is number => value != null);
+
+  if (leadValues.length === 0) {
+    return null;
   }
 
-  // Treat "<1" style results as below detection for the hackathon UI.
-  if (measurement.comparator === "lt" || measurement.comparator === "lte") {
-    return false;
-  }
-
-  return measurement.value > 0;
+  return Math.max(...leadValues);
 }
 
-function getBacteriaSummary(sample: WaterSample): SampleComputedSummary["bacteria"] {
-  if (indicatesDetection(sample.eColiQuantiTray)) {
-    return "e_coli_detected";
+function getLeadRisk(sample: WaterSample): SampleComputedSummary["leadRisk"] {
+  const maxLead = getMaxLeadValue(sample);
+
+  if (maxLead == null) {
+    return "unknown";
   }
 
-  if (indicatesDetection(sample.coliformQuantiTray)) {
-    return "coliform_detected";
+  if (maxLead >= EPA_LEAD_ACTION_LEVEL_MG_L) {
+    return "high";
   }
 
-  return "not_detected";
-}
-
-function getClaritySummary(sample: WaterSample): SampleComputedSummary["clarity"] {
-  const turbidity = sample.turbidity.value;
-
-  // This is intentionally a light, non-regulatory review heuristic.
-  // Treatment-rule turbidity thresholds should not be reused here as a hard
-  // consumer safety cutoff for individual street-level samples.
-  if (turbidity != null && turbidity > 1) {
-    return "review";
+  if (maxLead >= LEAD_REVIEW_LEVEL_MG_L) {
+    return "elevated";
   }
 
-  return "normal";
-}
-
-function getDisinfectionSummary(
-  sample: WaterSample,
-): SampleComputedSummary["disinfection"] {
-  const chlorine = sample.residualFreeChlorine.value;
-
-  // EPA MRDL for free chlorine is 4.0 mg/L.
-  if (chlorine != null && chlorine > 4.0) {
-    return "high_alert";
-  }
-
-  // 0.2 mg/L is used here as a conservative operational residual benchmark,
-  // not as a direct health-violation threshold.
-  if (chlorine != null && chlorine < 0.2) {
-    return "low_review";
-  }
-
-  return "normal";
+  return "low";
 }
 
 export function getComputedSummaryForSample(
   sample: WaterSample,
 ): SampleComputedSummary {
-  const bacteria = getBacteriaSummary(sample);
-  const clarity = getClaritySummary(sample);
-  const disinfection = getDisinfectionSummary(sample);
+  const leadRisk = getLeadRisk(sample);
 
-  let overall: SampleComputedSummary["overall"] = "normal";
+  if (leadRisk === "high") {
+    return {
+      leadRisk,
+      overall: "alert",
+      filterRecommendation: "strongly_recommended",
+    };
+  }
 
-  if (bacteria === "e_coli_detected" || disinfection === "high_alert") {
-    overall = "alert";
-  } else if (
-    bacteria === "coliform_detected" ||
-    clarity === "review" ||
-    disinfection === "low_review"
-  ) {
-    overall = "review";
+  if (leadRisk === "elevated") {
+    return {
+      leadRisk,
+      overall: "review",
+      filterRecommendation: "recommended",
+    };
+  }
+
+  if (leadRisk === "low") {
+    return {
+      leadRisk,
+      overall: "normal",
+      filterRecommendation: "not_needed",
+    };
   }
 
   return {
-    bacteria,
-    clarity,
-    disinfection,
-    overall,
+    leadRisk: "unknown",
+    overall: "unknown",
+    filterRecommendation: "unknown",
   };
 }
 
 export function getHealthSummaryForSample(sample: WaterSample): HealthSummary {
-  const reasons: string[] = [];
   const summary = getComputedSummaryForSample(sample);
+  const reasons: string[] = [];
 
-  if (summary.bacteria === "e_coli_detected") {
-    reasons.push("E. coli was detected in this sample.");
-  } else if (summary.bacteria === "coliform_detected") {
-    reasons.push(
-      "Total coliform was detected. This can indicate a water-quality or system issue and may warrant review, but it does not by itself mean the water is unsafe.",
-    );
+  const maxLead = getMaxLeadValue(sample);
+  if (maxLead != null) {
+    reasons.push(`Highest lead reading: ${maxLead.toFixed(3)} mg/L.`);
   } else {
-    reasons.push("No coliform or E. coli were detected in this sample.");
+    reasons.push("No usable lead reading was available for this sample.");
   }
 
-  if (summary.disinfection === "low_review") {
+  if (summary.filterRecommendation === "strongly_recommended") {
     reasons.push(
-      "Free chlorine was below a common operational residual benchmark.",
+      "Lead is at or above the EPA 0.015 mg/L action level. Use a certified lead-removal filter.",
     );
-  } else if (summary.disinfection === "high_alert") {
+    return { status: "alert", reasons };
+  }
+
+  if (summary.filterRecommendation === "recommended") {
     reasons.push(
-      "Free chlorine exceeded the EPA maximum residual disinfectant level.",
+      "Lead is elevated above the project review level. A certified lead-removal filter is recommended.",
     );
+    return { status: "watch", reasons };
   }
 
-  if (summary.clarity === "review") {
-    reasons.push("Turbidity was higher than a typical review level.");
-  }
-
-  if (summary.overall === "review") {
-    return {
-      status: "watch",
-      reasons,
-    };
-  }
-
-  if (summary.overall === "alert") {
-    return {
-      status: "alert",
-      reasons,
-    };
-  }
-
-  const hasAnyNumericData = NUMERIC_FIELDS.some(
-    (field) => getNumericValue(sample, field) != null,
-  );
-
-  if (!hasAnyNumericData) {
-    return {
-      status: "unknown",
-      reasons: ["This sample did not include parseable numeric water quality values."],
-    };
+  if (summary.filterRecommendation === "not_needed") {
+    reasons.push(
+      "Lead is low in this sample. A dedicated lead filter is optional based on your risk tolerance.",
+    );
+    return { status: "normal", reasons };
   }
 
   return {
-    status: "normal",
+    status: "unknown",
     reasons,
   };
 }
 
-function summarizeNumericField(samples: WaterSample[], field: NumericFieldKey): NumericFieldStats {
+function summarizeNumericField(
+  samples: WaterSample[],
+  field: NumericFieldKey,
+): NumericFieldStats {
   const values = samples
     .map((sample) => sample[field].value)
     .filter((value): value is number => value != null);
@@ -187,11 +155,14 @@ export function summarizeSamples(
   allSamples: WaterSample[],
   filteredSamples: WaterSample[],
 ): SummaryResult {
-  const sampleClasses = filteredSamples.reduce<Record<string, number>>((accumulator, sample) => {
-    const key = sample.sampleClass ?? "Unknown";
-    accumulator[key] = (accumulator[key] ?? 0) + 1;
-    return accumulator;
-  }, {});
+  const sampleClasses = filteredSamples.reduce<Record<string, number>>(
+    (accumulator, sample) => {
+      const key = sample.borough ?? "Unknown";
+      accumulator[key] = (accumulator[key] ?? 0) + 1;
+      return accumulator;
+    },
+    {},
+  );
 
   const statuses = filteredSamples.map(getHealthSummaryForSample);
   const counts: Record<HealthStatus, number> = {

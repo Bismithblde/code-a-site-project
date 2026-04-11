@@ -4,109 +4,78 @@ import { NextRequest } from "next/server";
 import { GET as getSamplesRoute } from "@/app/api/water/samples/route";
 import { summarizeNearbySamples } from "./geo";
 import { normalizeWaterSample } from "./normalize";
-import { findNearestSamplesFromOrigin } from "./service";
-import { resolveZipCodeOrigin } from "./zip";
+import { buildProbabilitySummary } from "./service";
+import { assertValidZipCode } from "./zip";
 
 function buildRow(overrides: Record<string, string> = {}) {
   return {
-    "Sample Number": "32317",
-    "Sample Date": "2015-01-03T00:00:00.000",
-    "Sample Time": "8:23",
-    "Sample Site": "77050",
-    "Sample class": "Compliance",
-    Location: "Queens Village",
-    "Residual Free Chlorine (mg/L)": "0.53",
-    "Turbidity (NTU)": "0.62",
-    "Fluoride (mg/L)": "",
-    "Coliform (Quanti-Tray) (MPN /100mL)": "<1",
-    "E.coli(Quanti-Tray) (MPN/100mL)": "<1",
+    "Kit ID": "15123522",
+    Borough: "Queens",
+    Zipcode: "11356",
+    "Date Collected": "02/04/2016",
+    "Date Recieved": "02/05/2016 12:00:00 AM",
+    "Lead First Draw (mg/L)": "0.003",
+    "Lead 1-2 Minute Flush (mg/L)": "0.001",
+    "Lead 5 Minute Flush (mg/L)": "",
+    "Copper First Draw (mg/L)": "0.099",
+    "Copper 1-2 Minute Flush (mg/L)": "",
+    "Copper 5 minute Flush (mg/L)": "",
     ...overrides,
   };
 }
 
-function buildSample(
-  sampleNumber: string,
-  latitude: number | null,
-  longitude: number | null,
-  overrides: Record<string, string> = {},
-) {
-  const sample = normalizeWaterSample(
+test("accepts valid 5-digit ZIP values", () => {
+  assert.equal(assertValidZipCode("11356"), "11356");
+});
+
+test("builds nearby lead summary from highest-risk sample", () => {
+  const low = normalizeWaterSample(
     buildRow({
-      "Sample Number": sampleNumber,
-      ...overrides,
+      "Kit ID": "1",
+      "Lead First Draw (mg/L)": "0.002",
     }),
-    Number(sampleNumber),
+    2,
+  );
+  const high = normalizeWaterSample(
+    buildRow({
+      "Kit ID": "2",
+      "Lead First Draw (mg/L)": "0.021",
+    }),
+    3,
   );
 
-  sample.latitude = latitude;
-  sample.longitude = longitude;
-  return sample;
-}
-
-test("resolves a supported NYC ZIP code to centroid coordinates", () => {
-  assert.deepEqual(resolveZipCodeOrigin("11356"), {
-    zip: "11356",
-    latitude: 40.7851,
-    longitude: -73.846,
-  });
-});
-
-test("sorts nearest samples by ascending distance and skips missing coordinates", () => {
-  const nearest = buildSample("1", 40.7809, -73.8452);
-  const farther = buildSample("2", 40.7300, -73.8000);
-  const missing = buildSample("3", null, null);
-
-  const results = findNearestSamplesFromOrigin(
-    [farther, missing, nearest],
-    40.7851,
-    -73.8460,
-    5,
-  );
-
-  assert.deepEqual(
-    results.map((sample) => sample.sampleNumber),
-    ["1", "2"],
-  );
-  assert.ok(results[0].distanceMiles < results[1].distanceMiles);
-});
-
-test("builds nearby summary from the worst statuses in the selected samples", () => {
-  const reviewSample = buildSample("10", 40.7809, -73.8452, {
-    "Residual Free Chlorine (mg/L)": "0.10",
-  });
-  const alertSample = buildSample("11", 40.7810, -73.8451, {
-    "E.coli(Quanti-Tray) (MPN/100mL)": "1",
-  });
-
-  const ranked = findNearestSamplesFromOrigin(
-    [reviewSample, alertSample],
-    40.7851,
-    -73.8460,
-    5,
-  );
-  const summary = summarizeNearbySamples(ranked);
-
+  const summary = summarizeNearbySamples([low, high]);
   assert.equal(summary.sampleCount, 2);
+  assert.equal(summary.leadRisk, "high");
   assert.equal(summary.overall, "alert");
-  assert.equal(summary.bacteria, "e_coli_detected");
-  assert.equal(summary.disinfection, "low_review");
-  assert.ok(summary.nearestDistanceMiles != null);
+  assert.equal(summary.filterRecommendation, "strongly_recommended");
 });
 
-test("limits ZIP-style nearest searches to the requested count", () => {
-  const samples = [
-    buildSample("20", 40.7850, -73.8460),
-    buildSample("21", 40.7840, -73.8450),
-    buildSample("22", 40.7830, -73.8440),
-  ];
+test("recency-weighted distribution favors the newer high-risk sample", () => {
+  const olderLow = normalizeWaterSample(
+    buildRow({
+      "Kit ID": "11",
+      "Date Collected": "01/01/2016",
+      "Lead First Draw (mg/L)": "0.001",
+    }),
+    10,
+  );
+  const newerHigh = normalizeWaterSample(
+    buildRow({
+      "Kit ID": "12",
+      "Date Collected": "01/01/2017",
+      "Lead First Draw (mg/L)": "0.030",
+    }),
+    11,
+  );
 
-  const result = findNearestSamplesFromOrigin(samples, 40.7851, -73.8460, 2);
-
-  assert.equal(result.length, 2);
-  assert.ok(result[0].distanceMiles <= result[1].distanceMiles);
+  const summary = buildProbabilitySummary([olderLow, newerHigh]);
+  assert.ok((summary.leadRiskDistribution?.high ?? 0) > (summary.leadRiskDistribution?.low ?? 0));
+  assert.equal(summary.filterRecommendation, "strongly_recommended");
+  assert.equal(summary.overall, "alert");
 });
 
-test("returns a clear route error for an invalid ZIP code", async () => {
+test("invalid ZIP input returns clear route error", async () => {
   const request = new NextRequest("http://localhost:3000/api/water/samples?zip=abcde");
   const response = await getSamplesRoute(request);
   const body = await response.json();

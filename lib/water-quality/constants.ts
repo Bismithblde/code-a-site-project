@@ -1,34 +1,30 @@
 import type { NumericFieldKey } from "./types";
 
-export const DEFAULT_WATER_SAMPLES_CSV_PATH = "data/nyc-water-samples.csv";
+export const DEFAULT_WATER_SAMPLES_CSV_PATH = "data/Lead_At_The_Tap_Results.csv";
 
 export const SOURCE_COLUMNS = {
-  sampleNumber: "Sample Number",
-  sampleDate: "Sample Date",
-  sampleTime: "Sample Time",
-  sampleSite: "Sample Site",
-  sampleClass: "Sample class",
-  location: "Location",
-  residualFreeChlorine: "Residual Free Chlorine (mg/L)",
-  turbidity: "Turbidity (NTU)",
-  fluoride: "Fluoride (mg/L)",
-  coliformQuantiTray: "Coliform (Quanti-Tray) (MPN /100mL)",
-  eColiQuantiTray: "E.coli(Quanti-Tray) (MPN/100mL)",
+  sampleNumber: "Kit ID",
+  borough: "Borough",
+  zipCode: "Zipcode",
+  sampleDate: "Date Collected",
+  dateReceived: "Date Recieved",
+  leadFirstDraw: "Lead First Draw (mg/L)",
+  leadFlushOneToTwo: "Lead 1-2 Minute Flush (mg/L)",
+  leadFlushFive: "Lead 5 Minute Flush (mg/L)",
+  copperFirstDraw: "Copper First Draw (mg/L)",
+  copperFlushOneToTwo: "Copper 1-2 Minute Flush (mg/L)",
+  copperFlushFive: "Copper 5 minute Flush (mg/L)",
 } as const;
 
-export const SOURCE_COLUMN_ALIASES = {
-  eColiQuantiTray: [
-    "E.coli(Quanti-Tray) (MPN/100mL)",
-    "E.coli (Quanti-Tray) (MPN/100mL)",
-  ],
-} as const;
+export const SOURCE_COLUMN_ALIASES = {} as const;
 
 export const NUMERIC_FIELDS: NumericFieldKey[] = [
-  "residualFreeChlorine",
-  "turbidity",
-  "fluoride",
-  "coliformQuantiTray",
-  "eColiQuantiTray",
+  "leadFirstDraw",
+  "leadFlushOneToTwo",
+  "leadFlushFive",
+  "copperFirstDraw",
+  "copperFlushOneToTwo",
+  "copperFlushFive",
 ];
 
 export const DEFAULT_PAGE_SIZE = 25;

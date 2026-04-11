@@ -9,25 +9,29 @@ const NUMERIC_FILTER_PARAM_MAP: Record<
   NumericFieldKey,
   { min: string; max: string }
 > = {
-  residualFreeChlorine: {
-    min: "residualFreeChlorineMin",
-    max: "residualFreeChlorineMax",
+  leadFirstDraw: {
+    min: "leadFirstDrawMin",
+    max: "leadFirstDrawMax",
   },
-  turbidity: {
-    min: "turbidityMin",
-    max: "turbidityMax",
+  leadFlushOneToTwo: {
+    min: "leadFlushOneToTwoMin",
+    max: "leadFlushOneToTwoMax",
   },
-  fluoride: {
-    min: "fluorideMin",
-    max: "fluorideMax",
+  leadFlushFive: {
+    min: "leadFlushFiveMin",
+    max: "leadFlushFiveMax",
   },
-  coliformQuantiTray: {
-    min: "coliformMin",
-    max: "coliformMax",
+  copperFirstDraw: {
+    min: "copperFirstDrawMin",
+    max: "copperFirstDrawMax",
   },
-  eColiQuantiTray: {
-    min: "eColiMin",
-    max: "eColiMax",
+  copperFlushOneToTwo: {
+    min: "copperFlushOneToTwoMin",
+    max: "copperFlushOneToTwoMax",
+  },
+  copperFlushFive: {
+    min: "copperFlushFiveMin",
+    max: "copperFlushFiveMax",
   },
 };
 
@@ -47,15 +51,15 @@ function parseOptionalSortField(value: string | null): SortField | undefined {
 
   const allowedFields: SortField[] = [
     "sampleDate",
-    "sampleSite",
-    "location",
-    "sampleClass",
+    "zipCode",
+    "borough",
     "sampleNumber",
-    "residualFreeChlorine",
-    "turbidity",
-    "fluoride",
-    "coliformQuantiTray",
-    "eColiQuantiTray",
+    "leadFirstDraw",
+    "leadFlushOneToTwo",
+    "leadFlushFive",
+    "copperFirstDraw",
+    "copperFlushOneToTwo",
+    "copperFlushFive",
   ];
 
   return allowedFields.includes(value as SortField)
@@ -82,11 +86,11 @@ export function parseSampleFilters(searchParams: URLSearchParams): WaterSampleFi
   const limit = parseOptionalNumber(searchParams.get("limit"));
 
   return {
-    sampleSite: searchParams.get("sampleSite") ?? undefined,
+    zipCode: searchParams.get("zipCode") ?? undefined,
+    borough: searchParams.get("borough") ?? undefined,
     locationText: searchParams.get("location") ?? undefined,
     zip: searchParams.get("zip") ?? undefined,
     limit,
-    sampleClass: searchParams.get("sampleClass") ?? undefined,
     dateFrom: searchParams.get("dateFrom") ?? undefined,
     dateTo: searchParams.get("dateTo") ?? undefined,
     sortBy: parseOptionalSortField(searchParams.get("sortBy")),

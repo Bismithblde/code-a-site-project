@@ -1,8 +1,13 @@
 [
   {
-    "key": "ss - e/s whitestone expy (service rd) 1st ss s/o higgins st 12 inch",
-    "latitude": 40.7817,
-    "longitude": -73.8294
+    "key": "shaft 26 of new croton aqueduct 179th st pumping station croton sampling pump tap - amsterdam ave & west 179th st",
+    "latitude": 40.7298922,
+    "longitude": -73.7904937
+  },
+  {
+    "key": "ss - e/s southern blvd btw e 180th & e 181st sts 36",
+    "latitude": 40.8389059,
+    "longitude": -73.8868234
   },
   {
     "key": "ss - e/s whitestone expy (service rd) 1st ss n/o higgins st 12 ",
@@ -10,9 +15,74 @@
     "longitude": -73.8293
   },
   {
+    "key": "ss - e/s whitestone expy (service rd) 1st ss s/o higgins st 12 inch",
+    "latitude": 40.7817,
+    "longitude": -73.8294
+  },
+  {
     "key": "ss - e/s whitestone expy (service rd) btw higgins & downing sts",
     "latitude": 40.7834,
     "longitude": -73.8288
+  },
+  {
+    "key": "ss - ifo 1058 n/s metropolitan ave 2nd ss w/o vandervoort ave 20",
+    "latitude": 40.7143504,
+    "longitude": -73.934659
+  },
+  {
+    "key": "ss - ifo 12 - 23 se/s jackson ave btw 48th & 49th aves 72",
+    "latitude": 40.8089234,
+    "longitude": -73.9108214
+  },
+  {
+    "key": "ss - ifo 160-10 s/s 89th ave 2nd e/o parsons blvd",
+    "latitude": 40.7060146,
+    "longitude": -73.8002551
+  },
+  {
+    "key": "ss - ifo 2015 w/s university ave 1st ss s/o w 180th st 12",
+    "latitude": 40.8553068,
+    "longitude": -73.9109873
+  },
+  {
+    "key": "ss - ifo 408 w/s woodrow rd btw arden ave & almond st 20",
+    "latitude": 40.554783,
+    "longitude": -74.183488
+  },
+  {
+    "key": "ss - ifo 41-18 w/s 39th st 2nd ss s/o skillman ave 12",
+    "latitude": 40.7409074,
+    "longitude": -73.9267835
+  },
+  {
+    "key": "ss - ifo 4740 e/s white plains rd 1st ss n/o st ouen st 20",
+    "latitude": 40.9044154,
+    "longitude": -73.8494399
+  },
+  {
+    "key": "ss - ifo 611 n/s w 181st st 1st ss w/o st nicholas ave 12",
+    "latitude": 40.8497996,
+    "longitude": -73.9342069
+  },
+  {
+    "key": "ss - ifo 67-02 w/s parsons blvd 2nd ss n/o jewel ave 12",
+    "latitude": 40.7296,
+    "longitude": -73.8046
+  },
+  {
+    "key": "ss - ifo 90-20 w/s francis lewis blvd 1st ss s/o 90th ave",
+    "latitude": 40.7207,
+    "longitude": -73.7716
+  },
+  {
+    "key": "ss - ifo 93 n/s austin place btw victory blvd & ward ave 84",
+    "latitude": 40.6311222,
+    "longitude": -74.0854254
+  },
+  {
+    "key": "ss - ifo 992 w/s nostrand ave 2nd ss s/o sullivan pl 12",
+    "latitude": 40.6643663,
+    "longitude": -73.9511889
   },
   {
     "key": "ss - n/s 20th ave 2nd ss w/o whitestone expy 12",
@@ -25,18 +95,33 @@
     "longitude": -73.8427
   },
   {
-    "key": "ss - ifo 67-02 w/s parsons blvd 2nd ss n/o jewel ave 12",
-    "latitude": 40.7296,
-    "longitude": -73.8046
+    "key": "ss - n/s ave u 1st ss w/o e 65th st 12",
+    "latitude": 40.6092347,
+    "longitude": -73.9084746
+  },
+  {
+    "key": "ss - n/s hillside ave & btw 213 pl & 214 st 16",
+    "latitude": 40.7322241,
+    "longitude": -73.7409862
+  },
+  {
+    "key": "ss - n/s linden blvd 1st ss e/o bristol st 12",
+    "latitude": 40.6798773,
+    "longitude": -73.8165551
+  },
+  {
+    "key": "ss - n/s w 151st st 2nd ss w/o amsterdam ave ifo 529 151st st 12",
+    "latitude": 40.7112856,
+    "longitude": -73.8081271
+  },
+  {
+    "key": "ss - s/s w 93rd st btw columbus ave & central park west 30",
+    "latitude": 40.6844622,
+    "longitude": -73.8479911
   },
   {
     "key": "ss w/s parsons blvd btw goethals ave & village rd (ifo 82-28 parsons blvd",
     "latitude": 40.7225,
-    "longitude": -73.7990
-  },
-  {
-    "key": "ss - ifo 90-20 w/s francis lewis blvd 1st ss s/o 90th ave",
-    "latitude": 40.7207,
-    "longitude": -73.7716
+    "longitude": -73.799
   }
 ]

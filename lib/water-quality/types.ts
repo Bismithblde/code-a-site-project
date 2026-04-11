@@ -1,17 +1,17 @@
 export type NumericComparator = "lt" | "lte" | "gt" | "gte" | "eq" | null;
 
 export type NumericFieldKey =
-  | "residualFreeChlorine"
-  | "turbidity"
-  | "fluoride"
-  | "coliformQuantiTray"
-  | "eColiQuantiTray";
+  | "leadFirstDraw"
+  | "leadFlushOneToTwo"
+  | "leadFlushFive"
+  | "copperFirstDraw"
+  | "copperFlushOneToTwo"
+  | "copperFlushFive";
 
 export type SortField =
   | "sampleDate"
-  | "sampleSite"
-  | "location"
-  | "sampleClass"
+  | "zipCode"
+  | "borough"
   | "sampleNumber"
   | NumericFieldKey;
 
@@ -32,19 +32,21 @@ export type WaterSample = {
   sampleDate: string | null;
   sampleTime: string | null;
   sampledAt: string | null;
-  sampleSite: string | null;
-  sampleClass: string | null;
+  dateReceived: string | null;
+  zipCode: string | null;
+  borough: string | null;
   location: string | null;
+  zipCodeNormalized: string;
+  boroughNormalized: string;
   locationNormalized: string;
-  sampleSiteNormalized: string;
-  sampleClassNormalized: string;
   latitude: number | null;
   longitude: number | null;
-  residualFreeChlorine: NumericMeasurement;
-  turbidity: NumericMeasurement;
-  fluoride: NumericMeasurement;
-  coliformQuantiTray: NumericMeasurement;
-  eColiQuantiTray: NumericMeasurement;
+  leadFirstDraw: NumericMeasurement;
+  leadFlushOneToTwo: NumericMeasurement;
+  leadFlushFive: NumericMeasurement;
+  copperFirstDraw: NumericMeasurement;
+  copperFlushOneToTwo: NumericMeasurement;
+  copperFlushFive: NumericMeasurement;
   raw: RawCsvRow;
   issues: string[];
   sourceRowNumber: number;
@@ -55,9 +57,9 @@ export type WaterDataset = {
   loadedAt: string;
   records: WaterSample[];
   bySampleNumber: Map<string, WaterSample>;
-  bySampleSite: Map<string, WaterSample[]>;
-  bySampleClass: Map<string, WaterSample[]>;
-  uniqueSites: string[];
+  byZipCode: Map<string, WaterSample[]>;
+  byBorough: Map<string, WaterSample[]>;
+  uniqueZipCodes: string[];
   uniqueLocations: string[];
 };
 
@@ -67,11 +69,11 @@ export type NumericRangeFilter = {
 };
 
 export type WaterSampleFilters = {
-  sampleSite?: string;
+  zipCode?: string;
+  borough?: string;
   locationText?: string;
   zip?: string;
   limit?: number;
-  sampleClass?: string;
   dateFrom?: string;
   dateTo?: string;
   sortBy?: SortField;
@@ -82,7 +84,7 @@ export type WaterSampleFilters = {
 };
 
 export type NearestMatch = {
-  field: "sampleSite" | "location";
+  field: "zipCode" | "borough" | "location";
   value: string;
   score: number;
 };
@@ -107,27 +109,39 @@ export type NearbySummary = {
   sampleCount: number;
   nearestDistanceMiles: number | null;
   overall: "normal" | "review" | "alert" | "unknown";
-  bacteria: "not_detected" | "coliform_detected" | "e_coli_detected" | "unknown";
-  clarity: "normal" | "review" | "unknown";
-  disinfection: "normal" | "low_review" | "high_alert" | "unknown";
+  leadRisk: "low" | "elevated" | "high" | "unknown";
+  filterRecommendation:
+    | "not_needed"
+    | "recommended"
+    | "strongly_recommended"
+    | "unknown";
+  averageLeadFirstDrawMgL?: number | null;
+  averageLeadFlushOneToTwoMgL?: number | null;
+  averageLeadFlushFiveMgL?: number | null;
+  leadRiskDistribution?: {
+    low: number;
+    elevated: number;
+    high: number;
+    unknown: number;
+  };
 };
 
 export type NearbyWaterSample = WaterSample & {
-  distanceMiles: number;
+  distanceMiles?: number;
 };
 
 export type NearbyQueryResult = {
   data: NearbyWaterSample[];
   meta: {
     zip: string;
-    origin: GeoPoint;
+    origin?: GeoPoint;
     count: number;
     total: number;
     page: number;
     pageSize: number;
     totalPages: number;
-    sortBy: "distanceMiles";
-    sortDir: "asc";
+    sortBy: string;
+    sortDir: "asc" | "desc";
     nearestMatches: NearestMatch[];
   };
   nearbySummary: NearbySummary;
@@ -139,10 +153,13 @@ export type HealthSummary = {
 };
 
 export type SampleComputedSummary = {
-  bacteria: "not_detected" | "coliform_detected" | "e_coli_detected";
-  clarity: "normal" | "review";
-  disinfection: "normal" | "low_review" | "high_alert";
-  overall: "normal" | "review" | "alert";
+  leadRisk: "low" | "elevated" | "high" | "unknown";
+  overall: "normal" | "review" | "alert" | "unknown";
+  filterRecommendation:
+    | "not_needed"
+    | "recommended"
+    | "strongly_recommended"
+    | "unknown";
 };
 
 export type NumericFieldStats = {
