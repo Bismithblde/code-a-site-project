@@ -4,17 +4,26 @@ import { useEffect, useState, useRef, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
-/* ── Bottle data — 6 featured brands for the hero scroll ── */
+/* ── Bottle data — all 15 brands with slugs for linking ── */
 const bottles = [
   { name: "Evian", slug: "evian", origin: "France · Still", image: "/images/evian.png" },
   { name: "Fiji", slug: "fiji", origin: "Fiji · Still", image: "/images/fiji.png" },
   { name: "Gerolsteiner", slug: "gerolsteiner", origin: "Germany · Sparkling", image: "/images/gerolsteiner.png" },
+  { name: "San Pellegrino", slug: "san-pellegrino", origin: "Italy · Sparkling", image: "/images/san-pellegrino.png" },
   { name: "Perrier", slug: "perrier", origin: "France · Sparkling", image: "/images/perrier.png" },
-  { name: "Liquid Death", slug: "liquid-death", origin: "USA · Still & Sparkling", image: "/images/liquid-death.png" },
+  { name: "Voss", slug: "voss", origin: "Norway · Still & Sparkling", image: "/images/voss.png" },
+  { name: "Essentia", slug: "essentia", origin: "USA · Still", image: "/images/essentia.png" },
+  { name: "Smartwater", slug: "smartwater", origin: "USA · Still", image: "/images/smartwater.png" },
   { name: "Topo Chico", slug: "topo-chico", origin: "Mexico · Sparkling", image: "/images/topo-chico.png" },
+  { name: "Mountain Valley", slug: "mountain-valley", origin: "USA · Still & Sparkling", image: "/images/mountain-valley.png" },
+  { name: "Acqua Panna", slug: "acqua-panna", origin: "Italy · Still", image: "/images/acqua-panna.png" },
+  { name: "Waiakea", slug: "waiakea", origin: "Hawaii · Still", image: "/images/waiakea.png" },
+  { name: "Icelandic Glacial", slug: "icelandic-glacial", origin: "Iceland · Still", image: "/images/icelandic.png" },
+  { name: "Liquid Death", slug: "liquid-death", origin: "USA · Still & Sparkling", image: "/images/liquid-death.png" },
+  { name: "Flow", slug: "flow", origin: "Canada · Still", image: "/images/flow.png" },
 ];
 
-const TOTAL_FRAMES = 60;
+const TOTAL_FRAMES = 120;
 const FRAME_W = 960;
 const FRAME_H = 540;
 
@@ -152,7 +161,7 @@ export function OceanHeroSection() {
   const scrollHintOpacity = 1 - rangeProgress(progress, 0, 0.05);
 
   return (
-    <section ref={sectionRef} className="relative w-full h-[400svh]">
+    <section ref={sectionRef} className="relative w-full h-[800svh]">
       <div className="sticky top-0 h-[100svh] min-h-[600px] max-h-[1100px] overflow-hidden">
 
         {/* ── Canvas (video) ── */}
