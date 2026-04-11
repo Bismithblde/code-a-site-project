@@ -207,25 +207,55 @@ export function OceanHeroSection() {
             Find Your Perfect
           </h1>
 
-          {/* Title line 2 — "Water" with glassmorphism effect */}
-          <span
-            className="text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black tracking-tight text-center relative inline-block"
+          {/* Title line 2 — "Water" with true glassmorphism via SVG clip-path */}
+          <div
+            className="relative inline-block"
             style={{
-              fontFamily: "var(--font-nunito), 'Nunito', system-ui, sans-serif",
               opacity: waterOpacity,
               transform: `translateY(${(1 - waterOpacity) * 30}px) scale(${0.9 + waterOpacity * 0.1})`,
-              color: "rgba(255, 255, 255, 0.2)",
-              WebkitTextStroke: "1.5px rgba(255, 255, 255, 0.5)",
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.15) 100%)",
-              filter: "drop-shadow(0 1px 2px rgba(255,255,255,0.1))",
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(4px)",
             }}
           >
-            Water
-          </span>
+            {/* SVG clip-path definition — text shape used as mask */}
+            <svg width="0" height="0" className="absolute">
+              <defs>
+                <clipPath id="water-text-clip" clipPathUnits="objectBoundingBox">
+                  <text
+                    x="0.5" y="0.78"
+                    textAnchor="middle"
+                    fontFamily="var(--font-nunito), Nunito, system-ui, sans-serif"
+                    fontWeight="900"
+                    fontSize="0.85"
+                  >
+                    Water
+                  </text>
+                </clipPath>
+              </defs>
+            </svg>
+
+            {/* Glass layer — backdrop-filter clipped to text shape */}
+            <div
+              className="w-[500px] sm:w-[600px] md:w-[700px] lg:w-[800px] h-[100px] sm:h-[120px] md:h-[140px] lg:h-[160px] mx-auto"
+              style={{
+                clipPath: "url(#water-text-clip)",
+                WebkitClipPath: "url(#water-text-clip)",
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+                backgroundColor: "rgba(255, 255, 255, 0.12)",
+              }}
+            />
+
+            {/* White stroke outline on top — visible text for the border effect */}
+            <span
+              className="absolute inset-0 flex items-center justify-center text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black tracking-tight text-center pointer-events-none"
+              style={{
+                fontFamily: "var(--font-nunito), Nunito, system-ui, sans-serif",
+                color: "transparent",
+                WebkitTextStroke: "1.5px rgba(255, 255, 255, 0.45)",
+              }}
+            >
+              Water
+            </span>
+          </div>
 
           {/* Subtitle */}
           <p
