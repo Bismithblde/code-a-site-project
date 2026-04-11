@@ -219,9 +219,8 @@ export function OceanHeroSection() {
               fontFamily: "var(--font-nunito), Nunito, system-ui, sans-serif",
               opacity: waterOpacity,
               transform: `scale(${waterScale})`,
-              color: "rgba(255, 255, 255, 0.25)",
-              WebkitTextStroke: "1.5px rgba(255, 255, 255, 0.35)",
-              textShadow: "0 1px 0 rgba(255,255,255,0.12), 0 -1px 0 rgba(0,0,0,0.08)",
+              color: "rgba(255, 255, 255, 0.35)",
+              textShadow: "0 1px 0 rgba(255,255,255,0.15), 0 -1px 0 rgba(0,0,0,0.1)",
             }}
           >
             Water
