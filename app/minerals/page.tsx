@@ -40,8 +40,8 @@ export default async function MineralsPage() {
     <>
       <section className="max-w-7xl mx-auto px-4 py-8">
         <ScrollReveal>
-          <h1 className="text-4xl font-bold mb-2">Minerals in Water</h1>
-          <p className="text-muted-foreground mb-12 max-w-2xl">
+          <h1 className="text-center text-4xl font-bold mb-2">Minerals in Water</h1>
+          <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
             Every mineral water has a unique composition. Understanding these
             minerals helps you choose the right water for your health goals.
           </p>
@@ -50,7 +50,7 @@ export default async function MineralsPage() {
         <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {allMinerals.map((mineral) => (
             <Link key={mineral.slug} href={`/minerals/${mineral.slug}`}>
-              <div className="glass-card p-6 group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full">
+              <div className="glass-card p-6 group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full text-center">
                 <span className="text-3xl mb-3 block">{MINERAL_DATA[mineral.slug]?.emoji ?? "💎"}</span>
                 <div className="mb-3">
                   <h3 className="text-lg font-bold group-hover:text-ocean-surface transition-colors">
@@ -62,7 +62,7 @@ export default async function MineralsPage() {
                   </p>
                 </div>
 
-                <div className="flex justify-between items-center pt-3 border-t border-border/50">
+                <div className="flex justify-center items-center gap-3 pt-3 border-t border-border/50">
                   {mineral.daily_value > 0 ? (
                     <span className="text-xs text-muted-foreground">
                       Daily value: {mineral.daily_value} {mineral.unit}
@@ -150,3 +150,4 @@ export default async function MineralsPage() {
     </>
   );
 }
+
