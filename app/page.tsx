@@ -11,9 +11,14 @@ import type { Brand } from "@/lib/types";
 export default async function HomePage() {
   const supabase = await createClient();
 
-  // Check auth status
-  const { data: { user } } = await supabase.auth.getUser();
-  const isLoggedIn = !!user;
+  // Check auth status — don't let auth errors crash the page
+  let isLoggedIn = false;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    isLoggedIn = !!user;
+  } catch {
+    // Not logged in or auth error — continue rendering
+  }
 
   // Fetch top-rated brands for "Top Picks"
   const { data: topBrands } = await supabase
