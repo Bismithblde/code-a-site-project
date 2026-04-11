@@ -51,7 +51,7 @@ export function Header() {
       >
         {/* Logo */}
         <Link href="/" className="text-xl font-bold">
-          <span>aqua.io</span>
+          <span>MineralWater</span>
         </Link>
 
         {/* Desktop nav */}
