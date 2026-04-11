@@ -5,7 +5,6 @@ import { StaggerGrid } from "@/components/animation/StaggerGrid";
 import { WaveDivider } from "@/components/animation/WaveDivider";
 import { ProductCard } from "@/components/ProductCard";
 import Link from "next/link";
-import { Droplets, Heart, Shield, Zap, Brain, Bone } from "lucide-react";
 import type { Brand } from "@/lib/types";
 
 export default async function HomePage() {
@@ -109,7 +108,7 @@ export default async function HomePage() {
         <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           <Link href="/minerals/calcium" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <Bone className="size-7 text-ocean-surface mb-4" />
+              <span className="text-3xl mb-3 block">🦴</span>
               <p className="text-lg sm:text-xl font-semibold mb-2">
                 <span className="text-amber-500">Weak bones?</span> Stiff joints?
               </p>
@@ -126,7 +125,7 @@ export default async function HomePage() {
 
           <Link href="/minerals/magnesium" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <Brain className="size-7 text-ocean-surface mb-4" />
+              <span className="text-3xl mb-3 block">😴</span>
               <p className="text-lg sm:text-xl font-semibold mb-2">
                 <span className="text-violet-500">Poor sleep?</span> Low energy?
               </p>
@@ -143,7 +142,7 @@ export default async function HomePage() {
 
           <Link href="/minerals/sodium" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <Heart className="size-7 text-ocean-surface mb-4" />
+              <span className="text-3xl mb-3 block">❤️‍🩹</span>
               <p className="text-lg sm:text-xl font-semibold mb-2">
                 <span className="text-rose-500">High blood pressure?</span>
               </p>
@@ -160,7 +159,7 @@ export default async function HomePage() {
 
           <Link href="/minerals/bicarbonate" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <Zap className="size-7 text-ocean-surface mb-4" />
+              <span className="text-3xl mb-3 block">🏃‍♂️</span>
               <p className="text-lg sm:text-xl font-semibold mb-2">
                 <span className="text-orange-500">Post-workout</span> fatigue?
               </p>
@@ -177,7 +176,7 @@ export default async function HomePage() {
 
           <Link href="/minerals/silica" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <Droplets className="size-7 text-ocean-surface mb-4" />
+              <span className="text-3xl mb-3 block">✨</span>
               <p className="text-lg sm:text-xl font-semibold mb-2">
                 <span className="text-pink-500">Dull skin?</span> Brittle nails?
               </p>
@@ -194,7 +193,7 @@ export default async function HomePage() {
 
           <Link href="/minerals/potassium" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-              <Shield className="size-7 text-ocean-surface mb-4" />
+              <span className="text-3xl mb-3 block">💪</span>
               <p className="text-lg sm:text-xl font-semibold mb-2">
                 <span className="text-emerald-500">Muscle cramps?</span> Irregular heartbeat?
               </p>
@@ -228,7 +227,7 @@ export default async function HomePage() {
       <section className="max-w-4xl mx-auto px-4 py-20">
         <ScrollReveal>
           <div className="glass-card p-8 md:p-10 text-center">
-            <Shield className="size-10 text-ocean-surface mx-auto mb-4" />
+            <span className="text-4xl block mx-auto mb-4">🚰</span>
             <h3 className="text-2xl md:text-3xl font-bold mb-3">
               Meanwhile, do you trust your tap?
             </h3>
