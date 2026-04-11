@@ -187,7 +187,7 @@ export function OceanHeroSection() {
 
         {/* ── Text content — scroll-driven transforms ── */}
         <div
-          className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12"
+          className="absolute inset-0 flex flex-col items-center justify-center px-6 md:px-12 pointer-events-none"
           style={{
             zIndex: 10,
             opacity: fadeOut,
@@ -235,7 +235,7 @@ export function OceanHeroSection() {
 
           {/* CTA Buttons */}
           <div
-            className="mt-8 flex flex-wrap gap-4 justify-center"
+            className="mt-8 flex flex-wrap gap-4 justify-center pointer-events-auto"
             style={{ opacity: ctaOpacity, transform: `translateY(${(1 - ctaOpacity) * 15}px)` }}
           >
             <Link href="/brands" className="px-8 py-3.5 bg-white text-[#053d66] font-semibold rounded-full transition-all duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:scale-105">
@@ -249,8 +249,8 @@ export function OceanHeroSection() {
 
         {/* ── Bottle showcase — one at a time, scroll-driven, with action buttons ── */}
         <div
-          className="absolute inset-0 flex items-center justify-end pr-[3%] md:pr-[8%]"
-          style={{ zIndex: 8, opacity: fadeOut }}
+          className="absolute inset-0 flex items-center justify-end pr-[3%] md:pr-[8%] pointer-events-none"
+          style={{ zIndex: 12, opacity: fadeOut }}
         >
           {bottles.map((bottle, i) => {
             const isActive = i === activeBottleIndex;
