@@ -174,16 +174,18 @@ export async function searchWaterSystems(params: {
   zip?: string;
   limit?: number;
 }): Promise<EchoWaterSystem[]> {
-  const { state, county, city, limit = 20 } = params;
+  const { state, county, city, limit = 25 } = params;
   if (!state) return [];
 
   const st = state.toUpperCase();
-  const maxRow = limit - 1;
+  // Fetch more than needed so we can sort by population and return the top ones
+  const fetchLimit = Math.max(limit * 4, 100);
 
   // Step 1: Get PWSIDs — if county provided, look up via GEOGRAPHIC_AREA first
   let pwsids: string[] | null = null;
   if (county) {
-    const geoUrl = `${ENVIRO_BASE}/GEOGRAPHIC_AREA/COUNTY_SERVED/${encodeURIComponent(county.toUpperCase())}/STATE_CODE/${st}/rows/0:99/json`;
+    // GEOGRAPHIC_AREA uses STATE_SERVED (not STATE_CODE)
+    const geoUrl = `${ENVIRO_BASE}/GEOGRAPHIC_AREA/COUNTY_SERVED/${encodeURIComponent(county.toUpperCase())}/STATE_SERVED/${st}/rows/0:199/json`;
     const geoRes = await enviroFetch(geoUrl);
     if (geoRes.ok) {
       const geoData = await geoRes.json();
@@ -196,27 +198,36 @@ export async function searchWaterSystems(params: {
   // Step 2: Fetch water systems
   let systems: EnviroSystem[] = [];
   if (pwsids && pwsids.length > 0) {
-    // Fetch each system by PWSID (batch up to limit)
-    const ids = pwsids.slice(0, limit);
-    const fetches = ids.map(async (id) => {
-      const url = `${ENVIRO_BASE}/WATER_SYSTEM/PWSID/${id}/PWS_TYPE_CODE/CWS/PWS_ACTIVITY_CODE/A/rows/0:0/json`;
-      const res = await enviroFetch(url);
-      if (!res.ok) return null;
-      const data = await res.json();
-      return Array.isArray(data) && data.length > 0 ? data[0] : null;
-    });
-    const results = await Promise.all(fetches);
-    systems = results.filter(Boolean) as EnviroSystem[];
+    // Fetch systems by PWSID in small batches (5 at a time, max 30 total)
+    const ids = pwsids.slice(0, 30);
+    for (let i = 0; i < ids.length; i += 5) {
+      const batch = ids.slice(i, i + 5);
+      const fetches = batch.map(async (id) => {
+        const url = `${ENVIRO_BASE}/WATER_SYSTEM/PWSID/${id}/PWS_TYPE_CODE/CWS/PWS_ACTIVITY_CODE/A/rows/0:0/json`;
+        try {
+          const res = await enviroFetch(url);
+          if (!res.ok) return null;
+          const data = await res.json();
+          return Array.isArray(data) && data.length > 0 ? data[0] : null;
+        } catch { return null; }
+      });
+      const results = await Promise.all(fetches);
+      systems.push(...(results.filter(Boolean) as EnviroSystem[]));
+    }
   } else {
-    // Fetch by state directly
+    // Fetch by state directly — get a larger batch to sort by population
     let url = `${ENVIRO_BASE}/WATER_SYSTEM/STATE_CODE/${st}/PWS_TYPE_CODE/CWS/PWS_ACTIVITY_CODE/A`;
     if (city) url += `/CITY_NAME/${encodeURIComponent(city.toUpperCase())}`;
-    url += `/rows/0:${maxRow}/json`;
+    url += `/rows/0:${fetchLimit - 1}/json`;
     const res = await enviroFetch(url);
     if (!res.ok) return [];
     const data = await res.json();
     if (Array.isArray(data)) systems = data;
   }
+
+  // Sort by population (largest first) and take top results
+  systems.sort((a, b) => (b.population_served_count ?? 0) - (a.population_served_count ?? 0));
+  systems = systems.slice(0, limit);
 
   if (systems.length === 0) return [];
 
