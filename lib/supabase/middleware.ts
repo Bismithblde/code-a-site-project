@@ -15,7 +15,7 @@ const PUBLIC_PAGE_PREFIXES = [
   "/tap-water",
   "/go/",
 ];
-const PUBLIC_API_PREFIXES = ["/api/auth", "/api/brands", "/api/minerals", "/api/water-quality"];
+const PUBLIC_API_PREFIXES = ["/api/auth", "/api/brands", "/api/minerals", "/api/water-quality", "/api/water"];
 
 function isPublicPagePath(pathname: string) {
   if (PUBLIC_PAGE_PATHS.has(pathname)) {

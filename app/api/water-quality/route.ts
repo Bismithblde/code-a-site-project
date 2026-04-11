@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
-import { EpaApiError, searchWaterSystems, type EchoWaterSystem } from "@/lib/epa/client";
+import { searchWaterSystems, type EchoWaterSystem } from "@/lib/epa/client";
 import { type CoverageCoordinate } from "@/lib/epa/coverage-map";
 import { resolveCoverageCoordinate } from "@/lib/epa/coverage-map.server";
 
@@ -19,6 +19,24 @@ const debugFailures = new Map<
   }
 >();
 const DEBUG_FAILURE_TTL_MS = 60 * 60 * 1000;
+
+type EpaErrorLike = {
+  status?: number | null;
+  code?: string | null;
+  url?: string | null;
+  bodySnippet?: string | null;
+};
+
+function asEpaErrorLike(error: unknown): EpaErrorLike | null {
+  if (!error || typeof error !== "object") return null;
+  const candidate = error as EpaErrorLike;
+  const hasKnownField =
+    typeof candidate.status === "number" ||
+    typeof candidate.code === "string" ||
+    typeof candidate.url === "string" ||
+    typeof candidate.bodySnippet === "string";
+  return hasKnownField ? candidate : null;
+}
 
 function getCached(key: string) {
   const entry = cache.get(key);
@@ -158,7 +176,7 @@ export async function GET(request: NextRequest) {
     try {
       systems = await searchWaterSystems({ state, county: county ?? undefined, city: city ?? undefined, limit: 25 });
     } catch (error) {
-      const epaError = error instanceof EpaApiError ? error : null;
+      const epaError = asEpaErrorLike(error);
       const hasNarrowFilters = Boolean(county || city);
       const isUpstreamFilterFailure = Boolean(epaError && epaError.status && epaError.status >= 400 && epaError.status < 500);
 
@@ -220,7 +238,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const debugId = makeDebugId();
-    const epaError = error instanceof EpaApiError ? error : null;
+    const epaError = asEpaErrorLike(error);
     const debugPayload = {
       createdAt: new Date().toISOString(),
       query: { state, county, city },
@@ -229,7 +247,7 @@ export async function GET(request: NextRequest) {
         ? {
             status: epaError.status ?? null,
             code: epaError.code ?? null,
-            url: epaError.url,
+            url: epaError.url ?? null,
             bodySnippet: epaError.bodySnippet ?? null,
           }
         : null,

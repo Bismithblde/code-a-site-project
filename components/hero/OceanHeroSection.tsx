@@ -163,9 +163,9 @@ export function OceanHeroSection() {
   const waterOpacity = 1; // always visible
   const waterScale = 1 - rangeProgress(progress, 0.04, 0.10) * 0.15; // shrinks slightly as title enters
 
-  // Phase 1: 2-6% — "Find Your Perfect" appears above
-  const titleOpacity = rangeProgress(progress, 0.02, 0.06);
-  const titleY = (1 - rangeProgress(progress, 0.02, 0.06)) * 50;
+  // Phase 1: "Find Your Perfect" visible from the start
+  const titleOpacity = 1;
+  const titleY = 0;
 
   // Phase 2: 5-9% — subtitle and CTAs
   const subtitleOpacity = rangeProgress(progress, 0.05, 0.09);
@@ -239,7 +239,7 @@ export function OceanHeroSection() {
             transition: "transform 0.1s linear",
           }}
         >
-          {/* Title line 1 */}
+          {/* Title line 1 — "Find Your Perfect" */}
           <h1
             className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white text-center drop-shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
             style={{
@@ -310,8 +310,8 @@ export function OceanHeroSection() {
               ref={waterTextRef}
               className="text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] tracking-tight text-center block relative"
               style={{
-                fontFamily: "Impact, 'Arial Narrow', sans-serif",
-                fontWeight: 400,
+                fontFamily: "var(--font-nunito), Nunito, sans-serif",
+                fontWeight: 900,
                 lineHeight: 1,
                 color: "transparent",
                 WebkitTextStroke: "0.5px rgba(100,100,100,0.35)",
@@ -326,8 +326,8 @@ export function OceanHeroSection() {
             <span
               className="absolute inset-0 text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] tracking-tight text-center block pointer-events-none select-none"
               style={{
-                fontFamily: "Impact, 'Arial Narrow', sans-serif",
-                fontWeight: 400,
+                fontFamily: "var(--font-nunito), Nunito, sans-serif",
+                fontWeight: 900,
                 lineHeight: 1,
                 color: "black",
                 filter: "url(#glass-shadow)",
@@ -344,8 +344,8 @@ export function OceanHeroSection() {
             <span
               className="absolute inset-0 text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] tracking-tight text-center block pointer-events-none select-none"
               style={{
-                fontFamily: "Impact, 'Arial Narrow', sans-serif",
-                fontWeight: 400,
+                fontFamily: "var(--font-nunito), Nunito, sans-serif",
+                fontWeight: 900,
                 lineHeight: 1,
                 color: "black",
                 filter: "url(#glass-specular)",
