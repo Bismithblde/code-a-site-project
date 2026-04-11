@@ -212,18 +212,62 @@ export function OceanHeroSection() {
             Find Your Perfect
           </h1>
 
-          {/* Title line 2 — "Water" glass text */}
-          <span
-            className="relative text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black tracking-tight text-center block"
-            style={{
-              fontFamily: "var(--font-nunito), Nunito, system-ui, sans-serif",
-              transform: `scale(${waterScale})`,
-              color: "transparent",
-              WebkitTextStroke: "2px rgba(255,255,255,0.5)",
-            }}
+          {/* Title line 2 — "Water" true glass text via SVG mask + backdrop-filter */}
+          <div
+            className="relative w-[420px] sm:w-[520px] md:w-[640px] lg:w-[780px] h-[90px] sm:h-[110px] md:h-[130px] lg:h-[160px] mx-auto"
+            style={{ transform: `scale(${waterScale})` }}
           >
-            Water
-          </span>
+            {/* SVG defines the text as a mask — white text on black = visible area */}
+            <svg
+              className="absolute inset-0 w-full h-full"
+              viewBox="0 0 780 160"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <defs>
+                <mask id="glass-text-mask">
+                  <rect width="100%" height="100%" fill="black" />
+                  <text
+                    x="50%"
+                    y="75%"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontFamily="Nunito, system-ui, sans-serif"
+                    fontWeight="900"
+                    fontSize="140"
+                    fill="white"
+                  >
+                    Water
+                  </text>
+                </mask>
+              </defs>
+              {/* Frosted glass rect — backdrop blur visible only through the text mask */}
+              <rect
+                width="100%"
+                height="100%"
+                fill="rgba(255,255,255,0.08)"
+                mask="url(#glass-text-mask)"
+                style={{
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                }}
+              />
+              {/* White outline of the text for glass edge highlight */}
+              <text
+                x="50%"
+                y="75%"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontFamily="Nunito, system-ui, sans-serif"
+                fontWeight="900"
+                fontSize="140"
+                fill="none"
+                stroke="rgba(255,255,255,0.3)"
+                strokeWidth="1.5"
+              >
+                Water
+              </text>
+            </svg>
+          </div>
 
           {/* Subtitle */}
           <p
