@@ -163,9 +163,9 @@ export function OceanHeroSection() {
   const waterOpacity = 1; // always visible
   const waterScale = 1 - rangeProgress(progress, 0.04, 0.10) * 0.15; // shrinks slightly as title enters
 
-  // Phase 1: 2-6% — "Find Your Perfect" appears above
-  const titleOpacity = rangeProgress(progress, 0.02, 0.06);
-  const titleY = (1 - rangeProgress(progress, 0.02, 0.06)) * 50;
+  // Phase 1: "Find Your Perfect" visible from the start
+  const titleOpacity = 1;
+  const titleY = 0;
 
   // Phase 2: 5-9% — subtitle and CTAs
   const subtitleOpacity = rangeProgress(progress, 0.05, 0.09);
@@ -239,19 +239,7 @@ export function OceanHeroSection() {
             transition: "transform 0.1s linear",
           }}
         >
-          {/* Title line 1 */}
-          <h1
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white text-center drop-shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
-            style={{
-              fontFamily: "var(--font-playfair), Georgia, serif",
-              opacity: titleOpacity,
-              transform: `translateY(${titleY}px)`,
-            }}
-          >
-            Find Your Perfect
-          </h1>
-
-          {/* Title line 2 — "Water" (liquid glass with SVG specular lighting) */}
+          {/* Title line 1 — "Water" (liquid glass with SVG specular lighting) */}
           <div
             className="relative flex justify-center"
             style={{ transform: `scale(${waterScale})` }}
@@ -357,6 +345,18 @@ export function OceanHeroSection() {
               Water
             </span>
           </div>
+
+          {/* Title line 2 — "Find Your Perfect" */}
+          <h1
+            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white text-center drop-shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
+            style={{
+              fontFamily: "var(--font-playfair), Georgia, serif",
+              opacity: titleOpacity,
+              transform: `translateY(${titleY}px)`,
+            }}
+          >
+            Find Your Perfect
+          </h1>
 
           {/* Subtitle */}
           <p
