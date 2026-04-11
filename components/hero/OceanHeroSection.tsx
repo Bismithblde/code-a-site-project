@@ -117,17 +117,22 @@ export function OceanHeroSection() {
     return () => { window.removeEventListener("scroll", onScroll); cancelAnimationFrame(rafRef.current); };
   }, []);
 
-  // ── Computed scroll-driven values (compressed for 800svh) ──
-  // Phase 1: 0-4% — title enters
-  const titleOpacity = rangeProgress(progress, 0, 0.03);
-  const titleY = (1 - rangeProgress(progress, 0, 0.04)) * 60;
+  // ── Computed scroll-driven values ──
+  // "Water" is visible FIRST on load, then rest appears on scroll
 
-  // Phase 2: 3-8% — "Water" word and subtitle enter
-  const waterOpacity = rangeProgress(progress, 0.03, 0.06);
-  const subtitleOpacity = rangeProgress(progress, 0.05, 0.08);
-  const ctaOpacity = rangeProgress(progress, 0.06, 0.10);
+  // Phase 0: "Water" is always visible from the start, fades slightly as other text enters
+  const waterOpacity = 1; // always visible
+  const waterScale = 1 - rangeProgress(progress, 0.04, 0.10) * 0.15; // shrinks slightly as title enters
 
-  // Phase 3: 10-15% — text shifts left, bottle zone activates
+  // Phase 1: 2-6% — "Find Your Perfect" appears above
+  const titleOpacity = rangeProgress(progress, 0.02, 0.06);
+  const titleY = (1 - rangeProgress(progress, 0.02, 0.06)) * 50;
+
+  // Phase 2: 5-9% — subtitle and CTAs
+  const subtitleOpacity = rangeProgress(progress, 0.05, 0.09);
+  const ctaOpacity = rangeProgress(progress, 0.07, 0.11);
+
+  // Phase 3: 10-16% — text shifts left, bottle zone activates
   const textShift = rangeProgress(progress, 0.10, 0.16);
   const textX = textShift * -15;
   const textScale = 1 - textShift * 0.15;
@@ -207,50 +212,33 @@ export function OceanHeroSection() {
             Find Your Perfect
           </h1>
 
-          {/* Title line 2 — "Water" with true glassmorphism via SVG clip-path */}
+          {/* Title line 2 — "Water" glassmorphism effect */}
           <div
             className="relative inline-block"
             style={{
               opacity: waterOpacity,
-              transform: `translateY(${(1 - waterOpacity) * 30}px) scale(${0.9 + waterOpacity * 0.1})`,
+              transform: `scale(${waterScale})`,
             }}
           >
-            {/* SVG clip-path definition — text shape used as mask */}
-            <svg width="0" height="0" className="absolute">
-              <defs>
-                <clipPath id="water-text-clip" clipPathUnits="objectBoundingBox">
-                  <text
-                    x="0.5" y="0.78"
-                    textAnchor="middle"
-                    fontFamily="var(--font-nunito), Nunito, system-ui, sans-serif"
-                    fontWeight="900"
-                    fontSize="0.85"
-                  >
-                    Water
-                  </text>
-                </clipPath>
-              </defs>
-            </svg>
-
-            {/* Glass layer — backdrop-filter clipped to text shape */}
+            {/* Background blur layer — sits behind the text, blurs the video */}
             <div
-              className="w-[500px] sm:w-[600px] md:w-[700px] lg:w-[800px] h-[100px] sm:h-[120px] md:h-[140px] lg:h-[160px] mx-auto"
+              className="absolute inset-0 rounded-2xl"
               style={{
-                clipPath: "url(#water-text-clip)",
-                WebkitClipPath: "url(#water-text-clip)",
-                backdropFilter: "blur(6px)",
-                WebkitBackdropFilter: "blur(6px)",
-                backgroundColor: "rgba(255, 255, 255, 0.12)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                mask: "linear-gradient(black, black)",
+                WebkitMask: "linear-gradient(black, black)",
               }}
             />
-
-            {/* White stroke outline on top — visible text for the border effect */}
+            {/* The text itself — semi-transparent white fill + white outline */}
             <span
-              className="absolute inset-0 flex items-center justify-center text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black tracking-tight text-center pointer-events-none"
+              className="relative text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black tracking-tight text-center block px-6 py-2"
               style={{
                 fontFamily: "var(--font-nunito), Nunito, system-ui, sans-serif",
-                color: "transparent",
-                WebkitTextStroke: "1.5px rgba(255, 255, 255, 0.45)",
+                color: "rgba(255, 255, 255, 0.2)",
+                WebkitTextStroke: "1.5px rgba(255, 255, 255, 0.5)",
+                textShadow: "0 2px 20px rgba(255,255,255,0.08)",
               }}
             >
               Water
