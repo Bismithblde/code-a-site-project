@@ -3,6 +3,13 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
 
+  // Include data files in serverless function bundles (for NYC water CSV)
+  outputFileTracingIncludes: {
+    "/api/water/samples": ["./data/**/*.csv", "./data/**/*.json"],
+    "/api/water/samples/*": ["./data/**/*.csv", "./data/**/*.json"],
+    "/api/water/summaries": ["./data/**/*.csv", "./data/**/*.json"],
+  },
+
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

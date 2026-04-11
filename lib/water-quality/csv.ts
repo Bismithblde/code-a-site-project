@@ -16,9 +16,22 @@ function getCsvPath() {
   const configuredPath =
     process.env.NYC_WATER_SAMPLES_CSV_PATH || DEFAULT_WATER_SAMPLES_CSV_PATH;
 
-  return path.isAbsolute(configuredPath)
-    ? configuredPath
-    : path.join(/* turbopackIgnore: true */ process.cwd(), configuredPath);
+  if (path.isAbsolute(configuredPath)) return configuredPath;
+
+  // Try process.cwd() first (works locally), then __dirname-based paths (works on Vercel)
+  const cwdPath = path.join(process.cwd(), configuredPath);
+  try {
+    if (require("fs").existsSync(cwdPath)) return cwdPath;
+  } catch {}
+
+  // On Vercel, files are in the function bundle relative to the project root
+  const dirnamePath = path.resolve(__dirname, "../../..", configuredPath);
+  try {
+    if (require("fs").existsSync(dirnamePath)) return dirnamePath;
+  } catch {}
+
+  // Fallback to cwd path (will show the error message with the path)
+  return cwdPath;
 }
 
 function parseCsvText(text: string) {
