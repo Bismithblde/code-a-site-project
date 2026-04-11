@@ -47,10 +47,8 @@ export default async function HomePage() {
             <br />
             <span className="text-muted-foreground">Do you know what&apos;s in it?</span>
           </h2>
-          <p className="text-center text-muted-foreground max-w-2xl mx-auto mb-16 text-base leading-relaxed">
-            Two bottles of water can look identical on the shelf — but one might have
-            82x more magnesium than the other. That invisible difference affects your sleep,
-            your bones, your energy, and your heart. Every single day.
+          <p className="text-center text-muted-foreground max-w-xl mx-auto mb-16 text-base">
+            Same shelf, same price — but one has 82x more magnesium. That difference hits your sleep, bones, and energy daily.
           </p>
         </ScrollReveal>
 
@@ -99,8 +97,7 @@ export default async function HomePage() {
             Every Sip Can Do More
           </h2>
           <p className="text-center text-muted-foreground max-w-xl mx-auto mb-14">
-            The right minerals in your water quietly support your body all day long —
-            if you know which ones to look for.
+            The right minerals work for you all day — if you know what to look for.
           </p>
         </ScrollReveal>
 
@@ -230,9 +227,8 @@ export default async function HomePage() {
             <h3 className="text-2xl md:text-3xl font-bold mb-3">
               Meanwhile, do you trust your tap?
             </h3>
-            <p className="text-muted-foreground max-w-lg mx-auto mb-6 leading-relaxed">
-              Over 12,000 U.S. water systems have had violations in the last 3 years.
-              Lead, copper, and treatment failures affect millions. Check yours in seconds.
+            <p className="text-muted-foreground max-w-lg mx-auto mb-6">
+              12,000+ U.S. systems had violations in the last 3 years. Check yours in seconds.
             </p>
             <Link
               href="/tap-water"
@@ -301,7 +297,7 @@ export default async function HomePage() {
             Top Picks
           </h2>
           <p className="text-center text-muted-foreground max-w-xl mx-auto mb-14">
-            Our highest-rated mineral water brands based on mineral content, taste, and value.
+            Highest rated by mineral content, taste, and value.
           </p>
         </ScrollReveal>
         <StaggerGrid className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -334,8 +330,7 @@ export default async function HomePage() {
             Track Your Hydration
           </h2>
           <p className="text-muted-foreground mb-8 max-w-lg mx-auto">
-            Log your daily water intake, set personalized goals, and get smart
-            reminders. Know exactly what minerals you&apos;re drinking.
+            Log intake, set goals, get reminders. Know what you&apos;re drinking.
           </p>
           {isLoggedIn ? (
             <Link
