@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
 interface WaterSystem {
   pwsid: string;
@@ -24,44 +26,50 @@ interface Props {
   zoom: number;
 }
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   alert: "#ef4444",
   watch: "#f59e0b",
   good: "#22c55e",
 };
 
-// Generate deterministic pseudo-random positions around the state center
-// since we don't have exact lat/lng for each system
+const statusLabels: Record<string, string> = {
+  alert: "Alert",
+  watch: "Watch",
+  good: "Good",
+};
+
+/**
+ * Generate a deterministic position for a water system around the state center.
+ * Since EPA data doesn't include lat/lng, we spread markers based on PWSID hash.
+ */
 function getSystemPosition(
   system: WaterSystem,
   center: [number, number],
   index: number,
   total: number,
 ): [number, number] {
-  // Use a hash of the PWSID for consistent positioning
   let hash = 0;
   for (let i = 0; i < system.pwsid.length; i++) {
     hash = (hash << 5) - hash + system.pwsid.charCodeAt(i);
     hash |= 0;
   }
 
-  // Spread markers in a spiral pattern around the center
   const angle = (index / total) * Math.PI * 2 + (hash % 100) / 100;
-  const radius = 0.3 + ((hash % 1000) / 1000) * 1.5; // 0.3 to 1.8 degrees spread
+  const radius = 0.3 + ((Math.abs(hash) % 1000) / 1000) * 1.5;
 
   return [
     center[0] + Math.cos(angle) * radius,
-    center[1] + Math.sin(angle) * radius * 1.3, // Wider horizontal spread
+    center[1] + Math.sin(angle) * radius * 1.3,
   ];
 }
 
 function getMarkerRadius(populationServed: number | null): number {
   if (!populationServed) return 6;
-  if (populationServed > 1_000_000) return 18;
-  if (populationServed > 500_000) return 14;
-  if (populationServed > 100_000) return 11;
-  if (populationServed > 10_000) return 8;
-  return 6;
+  if (populationServed > 1_000_000) return 14;
+  if (populationServed > 500_000) return 11;
+  if (populationServed > 100_000) return 9;
+  if (populationServed > 10_000) return 7;
+  return 5;
 }
 
 export default function WaterQualityMapInner({ systems, center, zoom }: Props) {
@@ -69,87 +77,85 @@ export default function WaterQualityMapInner({ systems, center, zoom }: Props) {
 
   const positionedSystems = useMemo(() => {
     return systems.map((system, index) => {
-      const [lat, lng] = getSystemPosition(system, center, index, systems.length);
-      // Map pseudo coordinates into a visible 0-100% viewport.
-      const x = Math.max(3, Math.min(97, 50 + ((lng - center[1]) * 18) / Math.max(1, zoom)));
-      const y = Math.max(6, Math.min(94, 50 - ((lat - center[0]) * 22) / Math.max(1, zoom)));
-      return { system, x, y };
+      const position = getSystemPosition(system, center, index, systems.length);
+      return { system, position };
     });
-  }, [systems, center, zoom]);
-
-  const selected = selectedPwsid
-    ? systems.find((system) => system.pwsid === selectedPwsid) ?? null
-    : null;
+  }, [systems, center]);
 
   return (
-    <div className="w-full h-[400px] z-0 relative overflow-hidden bg-[#0a1628]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.2),transparent_55%),radial-gradient(circle_at_80%_70%,rgba(14,116,144,0.22),transparent_55%),linear-gradient(180deg,#0c1f34_0%,#0a1628_100%)]" />
-      <div className="absolute inset-0 opacity-25 [background-size:40px_40px] [background-image:linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)]" />
+    <MapContainer
+      center={center}
+      zoom={zoom}
+      className="w-full h-[400px] z-0"
+      scrollWheelZoom={false}
+      style={{ background: "#0a1628" }}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+        subdomains="abcd"
+      />
 
-      {positionedSystems.map(({ system, x, y }) => {
+      {positionedSystems.map(({ system, position }) => {
         const color = statusColors[system.status];
-        const size = getMarkerRadius(system.populationServed) * 2;
-        const selectedMarker = selectedPwsid === system.pwsid;
+        const radius = getMarkerRadius(system.populationServed);
+        const isSelected = selectedPwsid === system.pwsid;
 
         return (
-          <button
-            type="button"
+          <CircleMarker
             key={system.pwsid}
-            className="absolute rounded-full border border-white/30 shadow-[0_0_0_2px_rgba(0,0,0,0.2)] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-            style={{
-              left: `${x}%`,
-              top: `${y}%`,
-              width: `${size}px`,
-              height: `${size}px`,
-              transform: "translate(-50%, -50%)",
-              backgroundColor: color,
-              opacity: selectedMarker ? 1 : 0.85,
-              boxShadow: selectedMarker
-                ? `0 0 0 3px ${color}66, 0 0 24px ${color}88`
-                : `0 0 0 1px ${color}66`,
+            center={position}
+            radius={isSelected ? radius + 3 : radius}
+            pathOptions={{
+              color: isSelected ? "#fff" : color,
+              fillColor: color,
+              fillOpacity: 0.85,
+              weight: isSelected ? 2 : 1,
             }}
-            onClick={() => setSelectedPwsid(system.pwsid)}
-            title={`${system.name} (${system.pwsid})`}
+            eventHandlers={{
+              click: () => setSelectedPwsid(system.pwsid),
+            }}
           >
-            <span className="sr-only">View details for {system.name}</span>
-          </button>
+            <Popup>
+              <div className="text-sm space-y-1 min-w-[200px]">
+                <h4 className="font-bold text-base">{system.name}</h4>
+                <p className="text-gray-600">
+                  {system.citiesServed ?? system.countiesServed ?? "Unknown area"} &middot; {system.source}
+                </p>
+                <p className="text-gray-600">
+                  Population: {system.populationServed?.toLocaleString() ?? "N/A"}
+                </p>
+                <p>
+                  Status:{" "}
+                  <span
+                    className="font-semibold"
+                    style={{ color }}
+                  >
+                    {statusLabels[system.status]}
+                  </span>
+                </p>
+                {system.rulesViolated3yr > 0 && (
+                  <p className="text-gray-600">Violations (3yr): {system.rulesViolated3yr}</p>
+                )}
+                {system.leadViolation && (
+                  <p className="font-semibold text-red-600">Lead violation detected</p>
+                )}
+                {system.copperViolation && (
+                  <p className="font-semibold text-red-600">Copper violation detected</p>
+                )}
+                <a
+                  href={system.detailUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-1 text-blue-600 hover:underline"
+                >
+                  View EPA report &rarr;
+                </a>
+              </div>
+            </Popup>
+          </CircleMarker>
         );
       })}
-
-      <div className="absolute left-3 top-3 rounded-md border border-white/15 bg-black/30 px-2 py-1 text-[11px] text-white/75 backdrop-blur-sm">
-        Interactive coverage map
-      </div>
-
-      <div className="absolute right-3 bottom-3 w-[min(92%,340px)] rounded-lg border border-white/15 bg-[#071322]/92 p-3 text-white shadow-xl backdrop-blur-sm">
-        {selected ? (
-          <div className="space-y-1.5 text-xs">
-            <h4 className="text-sm font-semibold text-white">{selected.name}</h4>
-            <p className="text-white/70">
-              {selected.citiesServed ?? selected.countiesServed ?? "Unknown area"} | {selected.source}
-            </p>
-            <p className="text-white/70">
-              Population: {selected.populationServed?.toLocaleString() ?? "N/A"}
-            </p>
-            <p className="text-white/70">Violations (3yr): {selected.rulesViolated3yr}</p>
-            {selected.leadViolation ? (
-              <p className="font-semibold text-red-300">Lead violation detected</p>
-            ) : null}
-            {selected.copperViolation ? (
-              <p className="font-semibold text-red-300">Copper violation detected</p>
-            ) : null}
-            <a
-              href={selected.detailUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block pt-1 text-sky-300 hover:text-sky-200 hover:underline"
-            >
-              View EPA report
-            </a>
-          </div>
-        ) : (
-          <p className="text-xs text-white/75">Select a marker to view system details.</p>
-        )}
-      </div>
-    </div>
+    </MapContainer>
   );
 }
