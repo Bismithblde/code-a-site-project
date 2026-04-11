@@ -239,7 +239,19 @@ export function OceanHeroSection() {
             transition: "transform 0.1s linear",
           }}
         >
-          {/* Title line 1 — "Water" (liquid glass with SVG specular lighting) */}
+          {/* Title line 1 — "Find Your Perfect" */}
+          <h1
+            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white text-center drop-shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
+            style={{
+              fontFamily: "var(--font-playfair), Georgia, serif",
+              opacity: titleOpacity,
+              transform: `translateY(${titleY}px)`,
+            }}
+          >
+            Find Your Perfect
+          </h1>
+
+          {/* Title line 2 — "Water" (liquid glass with SVG specular lighting) */}
           <div
             className="relative flex justify-center"
             style={{ transform: `scale(${waterScale})` }}
@@ -345,18 +357,6 @@ export function OceanHeroSection() {
               Water
             </span>
           </div>
-
-          {/* Title line 2 — "Find Your Perfect" */}
-          <h1
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight text-white text-center drop-shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
-            style={{
-              fontFamily: "var(--font-playfair), Georgia, serif",
-              opacity: titleOpacity,
-              transform: `translateY(${titleY}px)`,
-            }}
-          >
-            Find Your Perfect
-          </h1>
 
           {/* Subtitle */}
           <p
