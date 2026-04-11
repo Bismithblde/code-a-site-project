@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimit } from "@/lib/rate-limit";
-import { getWaterSystemDetail } from "@/lib/epa/client";
+import { getWaterSystemDetail, fetchLeadAndCopper, fetchViolationDetails } from "@/lib/epa/client";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +40,7 @@ export async function GET(
     if (isSeriousViolator || hasHealthViolation) status = "alert";
     else if (hasCurrentViolation || parseInt(system.QtrsWithVio ?? "0", 10) > 4) status = "watch";
 
-    return NextResponse.json({
+    const result: Record<string, unknown> = {
       system: {
         pwsid: system.PWSId,
         name: system.PWSName,
@@ -67,7 +67,22 @@ export async function GET(
         detailUrl: system.DfrUrl,
       },
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    // Fetch detailed data in parallel
+    const [leadCopper, violations] = await Promise.allSettled([
+      fetchLeadAndCopper(pwsid),
+      fetchViolationDetails(pwsid),
+    ]);
+
+    if (leadCopper.status === "fulfilled" && leadCopper.value) {
+      (result as Record<string, unknown>).leadAndCopper = leadCopper.value;
+    }
+    if (violations.status === "fulfilled") {
+      (result as Record<string, unknown>).violations = violations.value;
+    }
+
+    return NextResponse.json(result);
   } catch {
     return NextResponse.json(
       { error: "Failed to fetch water system details." },

@@ -118,6 +118,99 @@ export async function searchWaterSystems(params: {
   return systems;
 }
 
+/** Lead/copper test result */
+export interface LeadCopperResult {
+  leadSamples: { value: string; units: string; dates: string }[];
+  copperSamples: { value: string; units: string; dates: string }[];
+  leadActionLevel: string | null;
+  copperActionLevel: string | null;
+  leadViolation: string | null;
+  copperViolation: string | null;
+}
+
+/** Violation detail */
+export interface ViolationDetail {
+  violationId: string;
+  beginDate: string | null;
+  endDate: string | null;
+  federalRule: string;
+  contaminantName: string;
+  categoryDesc: string;
+  measure: string | null;
+  federalMCL: string | null;
+  status: string;
+  enforcementActions: { date: string; type: string; desc: string; agency: string }[];
+}
+
+/**
+ * Fetch lead and copper test results for a water system.
+ */
+export async function fetchLeadAndCopper(pwsid: string): Promise<LeadCopperResult | null> {
+  try {
+    const res = await echoFetch(
+      `https://echodata.epa.gov/echo/dfr_rest_services.get_sdwa_lead_and_copper?output=JSON&p_id=${pwsid}`
+    );
+    const data = await res.json();
+    const source = data?.Results?.LeadAndCopperRule5Yr?.Sources?.[0];
+    if (!source) return null;
+
+    return {
+      leadSamples: (source.LeadSamples ?? []).map((s: Record<string, string>) => ({
+        value: s.PB90Value ?? s.PB90 ?? "",
+        units: s.PB90Units ?? "mg/L",
+        dates: s.PB90Dates ?? "",
+      })),
+      copperSamples: (source.CopperSamples ?? []).map((s: Record<string, string>) => ({
+        value: s.CU90Value ?? s.CU90 ?? "",
+        units: s.CU90Units ?? "mg/L",
+        dates: s.CU90Dates ?? "",
+      })),
+      leadActionLevel: source.PbALE ?? null,
+      copperActionLevel: source.CuALE ?? null,
+      leadViolation: source.PbViol ?? null,
+      copperViolation: source.CuViol ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch detailed violations for a water system.
+ */
+export async function fetchViolationDetails(pwsid: string): Promise<ViolationDetail[]> {
+  try {
+    const res = await echoFetch(
+      `https://echodata.epa.gov/echo/dfr_rest_services.get_sdwa_violations?output=JSON&p_id=${pwsid}`
+    );
+    const data = await res.json();
+    const source = data?.Results?.ViolationsEnforcementActions?.Sources?.[0];
+    if (!source?.Violations) return [];
+
+    return source.Violations.map((v: Record<string, unknown>) => ({
+      violationId: (v.ViolationID as string) ?? "",
+      beginDate: (v.CompliancePeriodBeginDate as string) ?? null,
+      endDate: (v.CompliancePeriodEndDate as string) ?? null,
+      federalRule: (v.FederalRule as string) ?? "",
+      contaminantName: (v.ContaminantName as string) ?? "",
+      categoryDesc: (v.ViolationCategoryDesc as string) ?? "",
+      measure: (v.ViolationMeasure as string) ?? null,
+      federalMCL: (v.FederalMCL as string) ?? null,
+      status: (v.Status as string) ?? "",
+      enforcementActions: ((v.EnforcementActions as Record<string, string>[]) ?? []).map(
+        (ea) => ({
+          date: ea.EnforcementDate ?? "",
+          type: ea.EnforcementType ?? "",
+          desc: ea.EnforcementActionTypeDesc ?? "",
+          agency: ea.Agency ?? "",
+        })
+      ),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Get detailed info for a specific water system by PWSID.
  */

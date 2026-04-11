@@ -68,8 +68,44 @@ function StatusBadge({ status }: { status: WaterSystem["status"] }) {
   );
 }
 
+interface DetailData {
+  leadAndCopper?: {
+    leadSamples: { value: string; units: string; dates: string }[];
+    copperSamples: { value: string; units: string; dates: string }[];
+    leadActionLevel: string | null;
+    copperActionLevel: string | null;
+  };
+  violations?: {
+    violationId: string;
+    beginDate: string | null;
+    federalRule: string;
+    contaminantName: string;
+    categoryDesc: string;
+    measure: string | null;
+    federalMCL: string | null;
+    status: string;
+    enforcementActions: { date: string; type: string; desc: string; agency: string }[];
+  }[];
+}
+
 function SystemCard({ system }: { system: WaterSystem }) {
   const [expanded, setExpanded] = useState(false);
+  const [detail, setDetail] = useState<DetailData | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const loadDetail = useCallback(async () => {
+    if (detail) { setExpanded(true); return; }
+    setExpanded(true);
+    setDetailLoading(true);
+    try {
+      const res = await fetch(`/api/water-quality/${system.pwsid}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDetail(data);
+      }
+    } catch { /* ignore */ }
+    setDetailLoading(false);
+  }, [system.pwsid, detail]);
 
   return (
     <div className="glass-card p-5 transition-all duration-200 hover:shadow-lg">
@@ -131,67 +167,161 @@ function SystemCard({ system }: { system: WaterSystem }) {
 
       {/* Expandable detail */}
       <button
-        onClick={() => setExpanded(!expanded)}
+        onClick={() => expanded ? setExpanded(false) : loadDetail()}
         className="text-xs text-primary hover:underline mb-2"
       >
-        {expanded ? "Hide details" : "Show more details"}
+        {expanded ? "Hide details" : "View detailed report"}
       </button>
 
       {expanded && (
-        <div className="mt-3 pt-3 border-t border-border space-y-3 text-sm">
+        <div className="mt-3 pt-3 border-t border-border space-y-4 text-sm">
+          {/* System info grid */}
           <div className="grid grid-cols-2 gap-2 text-xs">
             <div><span className="text-muted-foreground">System ID:</span> {system.pwsid}</div>
             <div><span className="text-muted-foreground">Type:</span> {system.type}</div>
             <div><span className="text-muted-foreground">Counties:</span> {system.countiesServed ?? "N/A"}</div>
             <div><span className="text-muted-foreground">Service Area:</span> {system.serviceArea ?? "N/A"}</div>
-            <div><span className="text-muted-foreground">Serious Violator:</span> {system.isSeriousViolator ? "Yes" : "No"}</div>
-            <div><span className="text-muted-foreground">Qtrs w/ Violations:</span> {system.quartersWithViolations}</div>
           </div>
 
-          {system.contaminantsInViolation3yr.length > 0 && (
+          {detailLoading && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-4">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Loading lead/copper test data and violations from EPA...
+            </div>
+          )}
+
+          {/* Lead & Copper Test Results */}
+          {detail?.leadAndCopper && (detail.leadAndCopper.leadSamples.length > 0 || detail.leadAndCopper.copperSamples.length > 0) && (
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Contaminants in violation (3yr):</p>
-              <div className="flex flex-wrap gap-1">
-                {system.contaminantsInViolation3yr.map((c) => (
-                  <span key={c} className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-700 dark:text-amber-400 text-xs">{c}</span>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Lead & Copper Test Results (90th Percentile)
+              </h4>
+
+              {detail.leadAndCopper.leadSamples.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Lead (Action Level: {detail.leadAndCopper.leadActionLevel ?? "0.015 mg/L"})
+                  </p>
+                  <div className="space-y-1">
+                    {detail.leadAndCopper.leadSamples.map((sample, i) => {
+                      const val = parseFloat(sample.value);
+                      const actionLevel = parseFloat(detail.leadAndCopper?.leadActionLevel?.replace(/[^\d.]/g, "") ?? "0.015");
+                      const exceeds = val >= actionLevel;
+                      return (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <span className={`font-mono font-bold ${exceeds ? "text-red-500" : "text-green-600"}`}>
+                            {sample.value} {sample.units}
+                          </span>
+                          {exceeds && <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[10px] font-semibold">EXCEEDS ACTION LEVEL</span>}
+                          <span className="text-muted-foreground">{sample.dates}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {detail.leadAndCopper.copperSamples.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Copper (Action Level: {detail.leadAndCopper.copperActionLevel ?? "1.3 mg/L"})
+                  </p>
+                  <div className="space-y-1">
+                    {detail.leadAndCopper.copperSamples.map((sample, i) => {
+                      const val = parseFloat(sample.value);
+                      const actionLevel = parseFloat(detail.leadAndCopper?.copperActionLevel?.replace(/[^\d.]/g, "") ?? "1.3");
+                      const exceeds = val >= actionLevel;
+                      return (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <span className={`font-mono font-bold ${exceeds ? "text-red-500" : "text-green-600"}`}>
+                            {sample.value} {sample.units}
+                          </span>
+                          {exceeds && <span className="px-1.5 py-0.5 rounded bg-red-500/10 text-red-500 text-[10px] font-semibold">EXCEEDS</span>}
+                          <span className="text-muted-foreground">{sample.dates}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Violation Details */}
+          {detail?.violations && detail.violations.length > 0 && (
+            <div>
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Violation History ({detail.violations.length} record{detail.violations.length !== 1 ? "s" : ""})
+              </h4>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {detail.violations.map((v, i) => (
+                  <div key={v.violationId || i} className="rounded-lg border border-border p-3 text-xs">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <p className="font-semibold">{v.contaminantName || v.federalRule}</p>
+                      <span className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        v.status === "Addressed" ? "bg-green-500/10 text-green-600"
+                          : v.status === "Resolved" ? "bg-green-500/10 text-green-600"
+                          : "bg-red-500/10 text-red-500"
+                      }`}>
+                        {v.status || "Open"}
+                      </span>
+                    </div>
+                    <p className="text-muted-foreground">{v.categoryDesc}</p>
+                    {v.beginDate && <p className="text-muted-foreground mt-0.5">Date: {v.beginDate}</p>}
+                    {v.federalMCL && <p className="text-muted-foreground">Federal MCL: {v.federalMCL}</p>}
+                    {v.measure && <p className="text-muted-foreground">Measured: {v.measure}</p>}
+                    {v.enforcementActions.length > 0 && (
+                      <div className="mt-1.5 pt-1.5 border-t border-border">
+                        <p className="text-muted-foreground font-medium">Enforcement:</p>
+                        {v.enforcementActions.map((ea, j) => (
+                          <p key={j} className="text-muted-foreground">
+                            {ea.date} — {ea.desc} ({ea.agency})
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
+          {/* No detail data */}
+          {detail && !detail.leadAndCopper && (!detail.violations || detail.violations.length === 0) && (
+            <p className="text-xs text-muted-foreground">No detailed contaminant data available for this system.</p>
+          )}
+
+          {/* Compliance history */}
           {system.complianceHistory && (
             <div>
               <p className="text-xs text-muted-foreground mb-1">3-Year Compliance History (quarters):</p>
               <div className="flex gap-0.5">
                 {system.complianceHistory.split("").slice(0, 12).map((char, i) => (
-                  <div
-                    key={i}
-                    className={`w-4 h-4 rounded-sm text-[9px] flex items-center justify-center font-mono ${
-                      char === "V" || char === "S"
-                        ? "bg-red-500/20 text-red-600"
-                        : char === " " || char === "_"
-                          ? "bg-muted text-muted-foreground"
-                          : "bg-green-500/20 text-green-600"
-                    }`}
-                    title={`Quarter ${i + 1}: ${char === "V" ? "Violation" : char === "S" ? "Serious" : "Compliant"}`}
-                  >
+                  <div key={i} className={`w-4 h-4 rounded-sm text-[9px] flex items-center justify-center font-mono ${
+                    char === "V" || char === "S" ? "bg-red-500/20 text-red-600"
+                      : char === " " || char === "_" ? "bg-muted text-muted-foreground"
+                      : "bg-green-500/20 text-green-600"
+                  }`} title={`Quarter ${i + 1}`}>
                     {char === " " || char === "_" ? "·" : char}
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-muted-foreground mt-1">V = violation, S = serious, green = compliant</p>
             </div>
           )}
 
-          <a
-            href={system.detailUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-          >
-            <ExternalLink className="size-3" />
-            View full EPA report
-          </a>
+          <div className="flex gap-3">
+            <a href={system.detailUrl} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+              <ExternalLink className="size-3" /> Full EPA report
+            </a>
+            <a href={`https://www.ewg.org/tapwater/system.php?pws=${system.pwsid}`} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+              <ExternalLink className="size-3" /> EWG report
+            </a>
+          </div>
         </div>
       )}
     </div>
