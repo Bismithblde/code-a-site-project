@@ -207,17 +207,21 @@ export function OceanHeroSection() {
             Find Your Perfect
           </h1>
 
-          {/* Title line 2 — "Water" with bubble effect */}
+          {/* Title line 2 — "Water" with glassmorphism effect */}
           <span
-            className="text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black tracking-tight text-center"
+            className="text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black tracking-tight text-center relative inline-block"
             style={{
               fontFamily: "var(--font-nunito), 'Nunito', system-ui, sans-serif",
               opacity: waterOpacity,
               transform: `translateY(${(1 - waterOpacity) * 30}px) scale(${0.9 + waterOpacity * 0.1})`,
-              color: "rgba(255, 255, 255, 0.15)",
-              WebkitTextStroke: "2px rgba(255, 255, 255, 0.85)",
-              textShadow: "0 0 30px rgba(255, 255, 255, 0.15), 0 0 60px rgba(56, 189, 248, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.1)",
-              letterSpacing: "0.02em",
+              color: "rgba(255, 255, 255, 0.2)",
+              WebkitTextStroke: "1.5px rgba(255, 255, 255, 0.5)",
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.15) 100%)",
+              filter: "drop-shadow(0 1px 2px rgba(255,255,255,0.1))",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
             }}
           >
             Water
