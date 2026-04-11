@@ -218,9 +218,19 @@ export function OceanHeroSection() {
             style={{
               fontFamily: "var(--font-nunito), Nunito, system-ui, sans-serif",
               transform: `scale(${waterScale})`,
-              color: "white",
-              opacity: 0.3,
-              textShadow: "0 0 2px rgba(255,255,255,0.8), 0 0 5px rgba(255,255,255,0.4), 0 0 10px rgba(255,255,255,0.2)",
+              color: "rgba(255,255,255,0.15)",
+              textShadow: [
+                /* Top light — simulates light hitting the top edge of glass */
+                "0 -2px 3px rgba(255,255,255,0.6)",
+                /* Bottom shadow — glass casts a subtle dark edge below */
+                "0 3px 5px rgba(0,0,0,0.4)",
+                /* Left/right edge glow — glass catching light on sides */
+                "-1px 0 2px rgba(255,255,255,0.25)",
+                "1px 0 2px rgba(255,255,255,0.25)",
+                /* Soft outer glow — ambient light scattering */
+                "0 0 10px rgba(255,255,255,0.15)",
+                "0 0 20px rgba(200,230,255,0.08)",
+              ].join(", "),
             }}
           >
             Water
