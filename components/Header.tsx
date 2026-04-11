@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Droplets, Menu, X, LogOut } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 
@@ -13,9 +13,11 @@ const navLinks = [
   { label: "Compare", href: "/compare" },
   { label: "Tap Water", href: "/tap-water" },
   { label: "Tracker", href: "/tracker" },
+  { label: "About", href: "/about" },
 ];
 
 const authLinks = [
+  { label: "About", href: "/about" },
   { label: "Create Account", href: "/register" },
   { label: "Login", href: "/login" },
 ];
@@ -48,9 +50,8 @@ export function Header() {
         className="pointer-events-auto mx-auto flex h-14 max-w-7xl items-center justify-between rounded-[1.75rem] border border-border/70 bg-background/75 px-4 shadow-[0_8px_24px_-18px_rgba(0,0,0,0.45)] backdrop-blur-xl transition-all duration-300 md:px-5"
       >
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 text-xl font-bold">
-          <Droplets className="size-6 text-primary" />
-          <span>MineralWater</span>
+        <Link href="/" className="text-xl font-bold">
+          <span>aqua.io</span>
         </Link>
 
         {/* Desktop nav */}

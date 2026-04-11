@@ -58,10 +58,10 @@ test("renders initial idle state", async () => {
 
   try {
     const view = render(<TapWaterPageClient controller={makeController()} />);
-    assert.ok(view.getByText("NYC Home Lead Results by ZIP"));
+    assert.ok(view.getByText("Tap Water Quality Lookup"));
     assert.ok(
       view.getByText(
-        "Enter a ZIP code to see aggregated lead results and distribution across homes.",
+        "Enter a ZIP code to load your lead risk summary and charts.",
       ),
     );
   } finally {
@@ -109,7 +109,7 @@ test("shows loading state while request is pending", async () => {
   }
 });
 
-test("renders lead overview, distribution, and recent tests on success", async () => {
+test("renders carousel summary and supports next/back navigation", async () => {
   const teardown = setupDomEnvironment();
 
   try {
@@ -131,6 +131,13 @@ test("renders lead overview, distribution, and recent tests on success", async (
             sortDir: "desc",
             nearestMatches: [],
           },
+          nearbySummary: {
+            sampleCount: 1,
+            nearestDistanceMiles: 0.3,
+            overall: "alert",
+            leadRisk: "high",
+            filterRecommendation: "strongly_recommended",
+          },
           leadSummary: {
             sampleCount: 1,
             mostRecentTestDate: "2015-01-03",
@@ -144,55 +151,24 @@ test("renders lead overview, distribution, and recent tests on success", async (
             detected: { count: 0, percent: 0 },
             elevated: { count: 1, percent: 100 },
           },
-          zipTrends: {
-            zipCode: "11356",
-            recordCount: 2,
-            years: [2023, 2017],
-            totalSamples: 531,
-            samplesWithLead: 105,
-            averagePercentWithLead: 19.2,
-            averageFirstDrawMgL: 0.00142,
-            averageSecondDrawMgL: 0.0004,
-            averageAllMgL: 0.00091,
-            highestDrawMgL: 0.032,
-            records: [
-              {
-                zipCode: "11356",
-                year: 2023,
-                totalSamples: 352,
-                samplesWithLead: 71,
-                percentWithLead: 20,
-                averageFirstDrawMgL: 0.00178,
-                averageSecondDrawMgL: 0.001,
-                averageAllMgL: 0.00138,
-                highestDrawMgL: 0.279,
-              },
-              {
-                zipCode: "11356",
-                year: 2017,
-                totalSamples: 179,
-                samplesWithLead: 34,
-                percentWithLead: 19,
-                averageFirstDrawMgL: 0.00157,
-                averageSecondDrawMgL: 0.0001,
-                averageAllMgL: 0.000815,
-                highestDrawMgL: 0.032,
-              },
-            ],
-          },
           notes: "Lead results vary by home and plumbing conditions.",
         })}
       />,
     );
 
-    assert.ok(view.getByText("Lead Overview"));
-    assert.ok(view.getByText("Distribution"));
-    assert.ok(view.getByText("ZIP Trend Summary"));
+    assert.ok(view.getByText("Tap Water Quality Lookup"));
+    assert.ok(view.getByText("We tested 1 samples. 100.0% have lead. Median first draw: 0.019 mg/L."));
+    assert.ok(view.getByText("Details"));
     assert.ok(view.getByText("Recent Tests"));
-    assert.ok(view.getByText("Lead results vary by home and plumbing conditions."));
-    assert.ok(view.getByText("Percent Detected (> 0)"));
-    assert.ok(view.getAllByText("100.0%").length >= 1);
-    assert.ok(view.getByText("ZIP 11356"));
+
+    fireEvent.click(view.getByRole("button", { name: "Next summary page" }));
+    assert.ok(view.getByText("Use a lead-certified filter now."));
+
+    fireEvent.click(view.getByRole("button", { name: "Next summary page" }));
+    assert.ok(view.getByText("Lead Distribution"));
+
+    fireEvent.click(view.getByRole("button", { name: "Previous summary page" }));
+    assert.ok(view.getByText("Use a lead-certified filter now."));
   } finally {
     cleanup();
     teardown();
@@ -250,7 +226,7 @@ test("renders empty state when no samples are returned", async () => {
   }
 });
 
-test("renders ZIP trend summary when no individual sample rows are returned", async () => {
+test("renders carousel dots for summary pages", async () => {
   const teardown = setupDomEnvironment();
 
   try {
@@ -285,42 +261,12 @@ test("renders ZIP trend summary when no individual sample rows are returned", as
             detected: { count: 0, percent: 0 },
             elevated: { count: 0, percent: 0 },
           },
-          zipTrends: {
-            zipCode: "11356",
-            recordCount: 1,
-            years: [2023],
-            totalSamples: 352,
-            samplesWithLead: 71,
-            averagePercentWithLead: 20,
-            averageFirstDrawMgL: 0.00178,
-            averageSecondDrawMgL: 0.001,
-            averageAllMgL: 0.00138,
-            highestDrawMgL: 0.279,
-            records: [
-              {
-                zipCode: "11356",
-                year: 2023,
-                totalSamples: 352,
-                samplesWithLead: 71,
-                percentWithLead: 20,
-                averageFirstDrawMgL: 0.00178,
-                averageSecondDrawMgL: 0.001,
-                averageAllMgL: 0.00138,
-                highestDrawMgL: 0.279,
-              },
-            ],
-          },
           notes: "Lead results vary by home and plumbing conditions.",
         })}
       />,
     );
 
-    assert.ok(view.getByText("ZIP Trend Summary"));
-    assert.ok(
-      view.getByText(
-        "No individual sample rows were returned for this ZIP. The ZIP trend summary above still shows the year-by-year aggregate data.",
-      ),
-    );
+    assert.equal(view.getAllByRole("button", { name: /Go to summary page/ }).length, 3);
   } finally {
     cleanup();
     teardown();

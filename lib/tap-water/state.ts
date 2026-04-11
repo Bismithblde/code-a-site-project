@@ -21,6 +21,7 @@ export type TapWaterPageState = {
   recentTests: TapWaterSample[];
   zipTrends: TapWaterZipTrendSummary | null;
   meta: TapWaterMeta | null;
+  nearbySummary: TapWaterSearchResponse["nearbySummary"] | null;
   leadSummary: TapWaterSearchResponse["leadSummary"] | null;
   distribution: TapWaterSearchResponse["distribution"] | null;
   notes: string | null;
@@ -37,6 +38,7 @@ export type TapWaterAction =
       meta: TapWaterMeta;
       recentTests: TapWaterSample[];
       zipTrends?: TapWaterZipTrendSummary | null;
+      nearbySummary?: TapWaterSearchResponse["nearbySummary"];
       leadSummary: TapWaterSearchResponse["leadSummary"];
       distribution: TapWaterSearchResponse["distribution"];
       notes: string | undefined;
@@ -52,6 +54,7 @@ export const initialTapWaterState: TapWaterPageState = {
   recentTests: [],
   zipTrends: null,
   meta: null,
+  nearbySummary: null,
   leadSummary: null,
   distribution: null,
   notes: null,
@@ -89,6 +92,7 @@ export function tapWaterReducer(
         recentTests: action.recentTests,
         zipTrends: action.zipTrends ?? null,
         meta: action.meta,
+        nearbySummary: action.nearbySummary ?? null,
         leadSummary: action.leadSummary ?? null,
         distribution: action.distribution ?? null,
         notes: action.notes ?? null,

@@ -79,7 +79,7 @@
   --font-nunito: var(--font-roboto);
 
   /* Ocean Light Theme */
-  --background: oklch(0.97 0.005 200);
+  --background: oklch(0.995 0 0);
   --foreground: oklch(0.2 0.02 220);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.2 0.02 220);

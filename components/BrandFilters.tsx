@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChevronDown, Search } from "lucide-react";
 import { ProductCard } from "@/components/ProductCard";
 import type { Brand } from "@/lib/types";
-import { Search, SlidersHorizontal, ChevronDown } from "lucide-react";
 
 type SortOption = "name" | "rating" | "price-low" | "price-high" | "tds" | "calcium" | "magnesium" | "ph";
-type TypeFilter = "all" | "still" | "sparkling" | "both";
+type TypeFilter = "still" | "sparkling" | "both";
 
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: "name", label: "Name (A-Z)" },
@@ -20,7 +20,6 @@ const sortOptions: { value: SortOption; label: string }[] = [
 ];
 
 const typeFilters: { value: TypeFilter; label: string }[] = [
-  { value: "all", label: "All Types" },
   { value: "still", label: "Still" },
   { value: "sparkling", label: "Sparkling" },
   { value: "both", label: "Still & Sparkling" },
@@ -55,18 +54,16 @@ function sortBrands(brands: Brand[], sort: SortOption): Brand[] {
 export function BrandFilters({ brands }: { brands: Brand[] }) {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("rating");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedTypes, setSelectedTypes] = useState<TypeFilter[]>([]);
+  const [typeAccordionOpen, setTypeAccordionOpen] = useState(false);
 
   const filtered = useMemo(() => {
     let result = brands;
 
-    // Type filter
-    if (typeFilter !== "all") {
-      result = result.filter((b) => b.type === typeFilter);
+    if (selectedTypes.length > 0) {
+      result = result.filter((b) => selectedTypes.includes(b.type as TypeFilter));
     }
 
-    // Search
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter(
@@ -77,135 +74,130 @@ export function BrandFilters({ brands }: { brands: Brand[] }) {
       );
     }
 
-    // Sort
     return sortBrands(result, sort);
-  }, [brands, search, sort, typeFilter]);
+  }, [brands, search, sort, selectedTypes]);
+
+  const selectedTypeLabel =
+    selectedTypes.length === 0
+      ? "All types"
+      : selectedTypes.length === 1
+        ? typeFilters.find((t) => t.value === selectedTypes[0])?.label ?? "1 selected"
+        : `${selectedTypes.length} selected`;
 
   return (
     <div>
-      {/* ── Filter Bar ── */}
-      <div className="sticky top-16 z-30 bg-background/80 backdrop-blur-lg border-b border-border py-4 -mx-4 px-4 mb-8">
-        <div className="max-w-7xl mx-auto">
-          {/* Top row: search + toggle */}
-          <div className="flex items-center gap-3">
-            {/* Search */}
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+      <div className="sticky top-16 z-30 -mx-4 mb-8 border-b border-border bg-background/80 px-4 py-4 backdrop-blur-lg">
+        <div className="mx-auto max-w-7xl">
+          <div className="mx-auto flex max-w-4xl items-center gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search brands..."
-                className="w-full h-10 pl-10 pr-4 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
+                className="h-14 w-full rounded-2xl border border-border bg-background pl-12 pr-4 text-base outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
-            {/* Filter toggle (mobile) */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="sm:hidden flex items-center gap-1.5 h-10 px-3 rounded-xl border border-border text-sm text-muted-foreground hover:bg-muted transition-colors"
-            >
-              <SlidersHorizontal className="size-4" />
-              Filters
-            </button>
-
-            {/* Desktop filters inline */}
-            <div className="hidden sm:flex items-center gap-3">
-              {/* Type chips */}
-              <div className="flex items-center gap-1.5">
-                {typeFilters.map((t) => (
-                  <button
-                    key={t.value}
-                    onClick={() => setTypeFilter(t.value)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                      typeFilter === t.value
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground hover:bg-muted/80"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Sort dropdown */}
-              <div className="relative">
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as SortOption)}
-                  className="appearance-none h-10 pl-3 pr-8 rounded-xl border border-border bg-background text-sm outline-none focus:border-primary cursor-pointer"
+            <div className="relative">
+              <button
+                onClick={() => setTypeAccordionOpen((open) => !open)}
+                className="inline-flex h-14 min-w-44 items-center justify-between gap-3 rounded-2xl border border-border bg-background px-4 text-sm font-medium text-foreground"
+                aria-expanded={typeAccordionOpen}
+                aria-controls="type-accordion"
+              >
+                <span>{selectedTypeLabel}</span>
+                <ChevronDown className={`size-4 text-muted-foreground transition-transform ${typeAccordionOpen ? "rotate-180" : ""}`} />
+              </button>
+              {typeAccordionOpen && (
+                <div
+                  id="type-accordion"
+                  className="absolute right-0 top-[calc(100%+0.5rem)] z-20 w-56 rounded-2xl border border-border bg-background p-3 shadow-lg"
                 >
-                  {sortOptions.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-              </div>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Water type</p>
+                  <div className="space-y-2">
+                    {typeFilters.map((t) => {
+                      const checked = selectedTypes.includes(t.value);
+                      return (
+                        <label key={t.value} className="flex cursor-pointer items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setSelectedTypes((prev) =>
+                                prev.includes(t.value) ? prev.filter((value) => value !== t.value) : [...prev, t.value]
+                              );
+                            }}
+                            className="size-4 rounded border-border accent-primary"
+                          />
+                          {t.label}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="relative hidden sm:block">
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortOption)}
+                className="h-14 min-w-52 appearance-none rounded-2xl border border-border bg-background pl-4 pr-10 text-sm outline-none focus:border-primary"
+              >
+                {sortOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             </div>
           </div>
 
-          {/* Mobile expanded filters */}
-          {showFilters && (
-            <div className="sm:hidden mt-3 flex flex-col gap-3">
-              <div className="flex flex-wrap gap-1.5">
-                {typeFilters.map((t) => (
-                  <button
-                    key={t.value}
-                    onClick={() => setTypeFilter(t.value)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                      typeFilter === t.value
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
+          <div className="mt-3 sm:hidden">
+            <div className="relative">
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortOption)}
+                className="h-10 w-full appearance-none rounded-xl border border-border bg-background pl-3 pr-8 text-sm outline-none"
+              >
+                {sortOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    Sort: {o.label}
+                  </option>
                 ))}
-              </div>
-              <div className="relative">
-                <select
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as SortOption)}
-                  className="appearance-none w-full h-10 pl-3 pr-8 rounded-xl border border-border bg-background text-sm outline-none"
-                >
-                  {sortOptions.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      Sort: {o.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-              </div>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             </div>
-          )}
+          </div>
 
-          {/* Result count */}
-          <p className="text-xs text-muted-foreground mt-2">
+          <p className="mt-2 text-xs text-muted-foreground">
             {filtered.length} brand{filtered.length !== 1 ? "s" : ""}
             {search && ` matching "${search}"`}
-            {typeFilter !== "all" && ` · ${typeFilter}`}
+            {selectedTypes.length > 0 && ` · ${selectedTypes.join(", ")}`}
             {` · sorted by ${sortOptions.find((o) => o.value === sort)?.label}`}
           </p>
         </div>
       </div>
 
-      {/* ── Results Grid ── */}
       {filtered.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((brand) => (
             <ProductCard key={brand.slug} brand={brand} showAffiliate />
           ))}
         </div>
       ) : (
-        <div className="text-center py-16">
+        <div className="py-16 text-center">
           <p className="text-lg text-muted-foreground">No brands found</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Try adjusting your search or filters
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Try adjusting your search or filters</p>
           <button
-            onClick={() => { setSearch(""); setTypeFilter("all"); setSort("rating"); }}
+            onClick={() => {
+              setSearch("");
+              setSelectedTypes([]);
+              setSort("rating");
+            }}
             className="mt-4 text-sm text-primary hover:underline"
           >
             Clear all filters

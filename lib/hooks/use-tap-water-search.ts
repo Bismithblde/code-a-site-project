@@ -56,6 +56,7 @@ export function useTapWaterSearch(options?: UseTapWaterSearchOptions) {
           meta: result.meta,
           recentTests: result.recentTests ?? result.data,
           zipTrends: result.zipTrends,
+          nearbySummary: result.nearbySummary,
           leadSummary: result.leadSummary,
           distribution: result.distribution,
           notes: result.notes,

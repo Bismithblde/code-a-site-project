@@ -1,27 +1,43 @@
 "use client";
 
-import { useCallback } from "react";
-import { Search } from "lucide-react";
+import { useCallback, useState } from "react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { useTapWaterSearch } from "@/lib/hooks/use-tap-water-search";
-import { formatLeadValue, formatSampleDate } from "@/lib/tap-water/format";
-import type { TapWaterSample, TapWaterZipTrendSummary } from "@/lib/tap-water/types";
+import {
+  formatFilterRecommendationLabel,
+  formatLeadValue,
+  formatSampleDate,
+} from "@/lib/tap-water/format";
+import type { TapWaterSample } from "@/lib/tap-water/types";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type TapWaterSearchController = ReturnType<typeof useTapWaterSearch>;
 
-function SummaryField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function SummaryField({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </p>
       <p className="text-sm font-medium">{value}</p>
     </div>
   );
@@ -35,131 +51,61 @@ function formatPercent(value: number | null | undefined) {
   return `${value.toFixed(1)}%`;
 }
 
-function formatCountPercent(value: { count: number; percent: number }) {
-  return `${value.count} (${formatPercent(value.percent)})`;
-}
-
-function formatTrendPercent(value: number | null | undefined) {
-  if (value == null || Number.isNaN(value)) {
-    return "N/A";
+function getFilterTone(
+  value: "not_needed" | "recommended" | "strongly_recommended" | "unknown",
+) {
+  switch (value) {
+    case "not_needed":
+      return {
+        badge: "secondary" as const,
+        panel: "border-emerald-500/30 bg-emerald-500/10",
+        title: "Lead risk appears low in this ZIP",
+      };
+    case "recommended":
+      return {
+        badge: "outline" as const,
+        panel: "border-amber-500/30 bg-amber-500/10",
+        title: "Lead can show up in some homes in this ZIP",
+      };
+    case "strongly_recommended":
+      return {
+        badge: "destructive" as const,
+        panel: "border-destructive/40 bg-destructive/10",
+        title: "Lead risk is elevated in this ZIP",
+      };
+    default:
+      return {
+        badge: "outline" as const,
+        panel: "border-border bg-muted/30",
+        title: "Lead recommendation is unavailable for this ZIP",
+      };
   }
-
-  return `${value.toFixed(1)}%`;
 }
 
 function RecentTestCard({ sample }: { sample: TapWaterSample }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">
+    <div className="rounded-lg border border-border p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm font-medium">
           {sample.zipCode ? `ZIP ${sample.zipCode}` : "ZIP unavailable"}
-        </CardTitle>
-        <CardDescription>
-          {sample.borough ?? "NYC"} • {formatSampleDate(sample)}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        <SummaryField label="First Draw Lead" value={formatLeadValue(sample.leadFirstDraw.value)} />
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {formatSampleDate(sample)}
+        </p>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <SummaryField
+          label="First Draw Lead"
+          value={formatLeadValue(sample.leadFirstDraw.value)}
+        />
         <SummaryField
           label="1-2 Min Flush Lead"
           value={formatLeadValue(sample.leadFlushOneToTwo.value)}
         />
-        <SummaryField label="5 Min Flush Lead" value={formatLeadValue(sample.leadFlushFive.value)} />
-        <SummaryField label="First Draw Copper" value={formatLeadValue(sample.copperFirstDraw.value)} />
         <SummaryField
-          label="1-2 Min Flush Copper"
-          value={formatLeadValue(sample.copperFlushOneToTwo.value)}
+          label="5 Min Flush Lead"
+          value={formatLeadValue(sample.leadFlushFive.value)}
         />
-        <SummaryField label="5 Min Flush Copper" value={formatLeadValue(sample.copperFlushFive.value)} />
-      </CardContent>
-    </Card>
-  );
-}
-
-function ZipTrendTable({ summary }: { summary: TapWaterZipTrendSummary }) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">ZIP Trend Summary</CardTitle>
-        <CardDescription>
-          {summary.zipCode ? `ZIP ${summary.zipCode}` : "ZIP"} • Annual lead summary data.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <SummaryField label="Years Covered" value={summary.years.join(", ")} />
-          <SummaryField label="Records" value={String(summary.recordCount)} />
-          <SummaryField label="Total Samples" value={String(summary.totalSamples)} />
-          <SummaryField
-            label="Samples With Lead"
-            value={String(summary.samplesWithLead)}
-          />
-          <SummaryField
-            label="Avg % With Lead"
-            value={formatTrendPercent(summary.averagePercentWithLead)}
-          />
-            <SummaryField
-              label="Avg First Draw"
-            value={formatLeadValue(summary.averageFirstDrawMgL)}
-          />
-          <SummaryField
-            label="Avg Second Draw"
-            value={formatLeadValue(summary.averageSecondDrawMgL)}
-          />
-          <SummaryField
-            label="Highest Draw"
-            value={formatLeadValue(summary.highestDrawMgL)}
-          />
-        </div>
-
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="min-w-full text-sm">
-            <thead className="bg-muted/40">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">Year</th>
-                <th className="px-3 py-2 text-right font-medium">Samples</th>
-                <th className="px-3 py-2 text-right font-medium">% With Lead</th>
-                <th className="px-3 py-2 text-right font-medium">Avg FD</th>
-                <th className="px-3 py-2 text-right font-medium">Avg SD</th>
-                <th className="px-3 py-2 text-right font-medium">Avg All</th>
-                <th className="px-3 py-2 text-right font-medium">Highest</th>
-              </tr>
-            </thead>
-            <tbody>
-              {summary.records.map((record) => (
-                <tr key={`${record.zipCode}-${record.year}`} className="border-t border-border/60">
-                  <td className="px-3 py-2 font-medium">{record.year}</td>
-                  <td className="px-3 py-2 text-right">{record.totalSamples}</td>
-                  <td className="px-3 py-2 text-right">{formatTrendPercent(record.percentWithLead)}</td>
-                  <td className="px-3 py-2 text-right">{formatLeadValue(record.averageFirstDrawMgL)}</td>
-                  <td className="px-3 py-2 text-right">{formatLeadValue(record.averageSecondDrawMgL)}</td>
-                  <td className="px-3 py-2 text-right">{formatLeadValue(record.averageAllMgL)}</td>
-                  <td className="px-3 py-2 text-right">{formatLeadValue(record.highestDrawMgL)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function DistributionBar({
-  label,
-  value,
-}: {
-  label: string;
-  value: { count: number; percent: number };
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center justify-between text-sm">
-        <span>{label}</span>
-        <span className="text-muted-foreground">{formatCountPercent(value)}</span>
-      </div>
-      <div className="h-2 w-full rounded bg-muted">
-        <div className="h-full rounded bg-primary" style={{ width: `${Math.min(value.percent, 100)}%` }} />
       </div>
     </div>
   );
@@ -192,8 +138,26 @@ export function TapWaterPageClient({
 }) {
   const defaultController = useTapWaterSearch({ limit: 5 });
   const { state, setQuery, submitSearch } = controller ?? defaultController;
+  const [currentSlide, setCurrentSlide] = useState(0);
   const isLoading = state.phase === "loading";
-  const hasZipTrends = Boolean(state.zipTrends?.records.length);
+  const filterRecommendation =
+    state.nearbySummary?.filterRecommendation ?? "unknown";
+  const filterTone = getFilterTone(filterRecommendation);
+  const distributionData = state.distribution
+    ? [
+        {
+          name: "ZIP distribution",
+          notDetected: state.distribution.notDetected.percent,
+          detected: state.distribution.detected.percent,
+          elevated: state.distribution.elevated.percent,
+        },
+      ]
+    : [];
+  const totalSlides = 3;
+  const nextSlide = () =>
+    setCurrentSlide((previous) => (previous + 1) % totalSlides);
+  const previousSlide = () =>
+    setCurrentSlide((previous) => (previous - 1 + totalSlides) % totalSlides);
 
   const onSubmit = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -204,21 +168,14 @@ export function TapWaterPageClient({
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-bold">NYC Home Lead Results by ZIP</h1>
-        <p className="max-w-3xl text-muted-foreground">
-          Search by ZIP code to see aggregated lead-at-the-tap results across homes. Lead levels can
-          vary across homes in the same ZIP.
-        </p>
+    <div className="mx-auto w-full max-w-6xl space-y-5 bg-white px-4 py-6 text-slate-900">
+      <header className="text-center">
+        <h1 className="text-3xl font-bold">Tap Water Quality Lookup</h1>
       </header>
 
-      <Card>
+      <Card className="bg-white">
         <CardHeader>
           <CardTitle className="text-lg">Search ZIP Lead Results</CardTitle>
-          <CardDescription>
-            Enter a 5-digit NYC ZIP code like <span className="font-medium">11356</span>.
-          </CardDescription>
         </CardHeader>
         <CardContent>
           <form className="flex flex-col gap-3 sm:flex-row" onSubmit={onSubmit}>
@@ -237,7 +194,9 @@ export function TapWaterPageClient({
           {state.errorMessage && (
             <p
               className={`mt-2 text-sm ${
-                state.phase === "validation_error" ? "text-destructive" : "text-muted-foreground"
+                state.phase === "validation_error"
+                  ? "text-destructive"
+                  : "text-muted-foreground"
               }`}
             >
               {state.errorMessage}
@@ -250,7 +209,7 @@ export function TapWaterPageClient({
         <Card>
           <CardContent className="py-8">
             <p className="text-sm text-muted-foreground">
-              Enter a ZIP code to see aggregated lead results and distribution across homes.
+              Enter a ZIP code to load your lead risk summary and charts.
             </p>
           </CardContent>
         </Card>
@@ -272,92 +231,182 @@ export function TapWaterPageClient({
         </Card>
       ) : null}
 
-      {(state.phase === "success" || state.phase === "empty") && state.leadSummary ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Lead Overview</CardTitle>
-            <CardDescription>
-              {state.meta?.zip ? `ZIP ${state.meta.zip}` : "ZIP"} • Lead results vary across homes in this ZIP.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <SummaryField label="Total Tests" value={String(state.leadSummary.sampleCount)} />
-              <SummaryField
-                label="Most Recent Test Date"
-                value={state.leadSummary.mostRecentTestDate ?? "N/A"}
-              />
-              <SummaryField
-                label="Median First Draw Lead"
-                value={formatLeadValue(state.leadSummary.medianFirstDraw)}
-              />
-              <SummaryField
-                label="Maximum First Draw Lead"
-                value={formatLeadValue(state.leadSummary.maxFirstDraw)}
-              />
-              <SummaryField
-                label="Percent Detected (> 0)"
-                value={formatPercent(state.leadSummary.percentDetected)}
-              />
-              <SummaryField
-                label="Percent Elevated (>= 0.015 mg/L)"
-                value={formatPercent(state.leadSummary.percentElevated)}
-              />
+      {(state.phase === "success" || state.phase === "empty") &&
+      state.leadSummary &&
+      state.distribution ? (
+        <Card className="bg-white">
+          <CardContent className="space-y-4 pt-8">
+            <div className="relative min-h-[18rem] overflow-hidden">
+              <div
+                className={`absolute inset-0 flex w-full flex-col items-center justify-center space-y-4 px-2 text-center transition-all duration-300 ease-out ${
+                  currentSlide === 0
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-1 opacity-0 pointer-events-none"
+                }`}
+              >
+                <p className="font-['Nunito','Fredoka','ui-rounded','system-ui','sans-serif'] text-[2.025rem] font-black leading-tight tracking-tight md:text-[2.7rem]">
+                  {`We tested ${state.leadSummary.sampleCount} samples. ${formatPercent(state.leadSummary.percentDetected)} have lead. Median first draw: ${formatLeadValue(state.leadSummary.medianFirstDraw)}.`}
+                </p>
+              </div>
+              <div
+                className={`absolute inset-0 flex w-full flex-col items-center justify-center space-y-4 px-2 text-center transition-all duration-300 ease-out ${
+                  currentSlide === 1
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-1 opacity-0 pointer-events-none"
+                }`}
+              >
+                <div>
+                  <Badge variant={filterTone.badge}>
+                    {formatFilterRecommendationLabel(filterRecommendation)}
+                  </Badge>
+                </div>
+                <p className="font-['Nunito','Fredoka','ui-rounded','system-ui','sans-serif'] text-[2.025rem] font-black leading-tight tracking-tight md:text-[2.7rem]">
+                  {filterRecommendation === "not_needed"
+                    ? "You do not need a filter."
+                    : filterRecommendation === "recommended"
+                      ? "Use a lead-certified filter."
+                      : filterRecommendation === "strongly_recommended"
+                        ? "Use a lead-certified filter now."
+                        : "Filter guidance unavailable."}
+                </p>
+              </div>
+              <div
+                className={`absolute inset-0 flex w-full flex-col items-center justify-center space-y-4 px-2 text-center transition-all duration-300 ease-out ${
+                  currentSlide === 2
+                    ? "translate-y-0 opacity-100"
+                    : "translate-y-1 opacity-0 pointer-events-none"
+                }`}
+              >
+                <p className="font-['Nunito','Fredoka','ui-rounded','system-ui','sans-serif'] text-[2.025rem] font-black tracking-tight md:text-[2.7rem]">
+                  Lead Distribution
+                </p>
+                <div className="h-44 w-full">
+                  <ResponsiveContainer
+                    width="100%"
+                    height="100%"
+                    minWidth={280}
+                    minHeight={140}
+                  >
+                    <BarChart
+                      data={distributionData}
+                      layout="vertical"
+                      margin={{ top: 8, right: 8, left: 0, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        type="number"
+                        domain={[0, 100]}
+                        tickFormatter={(value) => `${value}%`}
+                      />
+                      <YAxis type="category" dataKey="name" width={0} hide />
+                      <Tooltip
+                        formatter={(value, name) => {
+                          const numericValue =
+                            typeof value === "number"
+                              ? value
+                              : Number(value ?? 0);
+                          return [
+                            `${numericValue.toFixed(1)}%`,
+                            String(name ?? ""),
+                          ];
+                        }}
+                        labelFormatter={() => "First draw test share"}
+                      />
+                      <Bar
+                        dataKey="notDetected"
+                        stackId="risk"
+                        fill="#10b981"
+                        name="Not detected"
+                      />
+                      <Bar
+                        dataKey="detected"
+                        stackId="risk"
+                        fill="#f59e0b"
+                        name="Detected"
+                      />
+                      <Bar
+                        dataKey="elevated"
+                        stackId="risk"
+                        fill="#ef4444"
+                        name="Elevated"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground">
-              {state.notes ??
-                "First draw reflects water that sat in pipes, flushed values may better reflect deeper plumbing/system conditions, and results vary by home."}
-            </p>
+            <div className="flex items-center justify-center gap-3">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                onClick={previousSlide}
+                aria-label="Previous summary page"
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              {[0, 1, 2].map((index) => (
+                <button
+                  key={index}
+                  type="button"
+                  aria-label={`Go to summary page ${index + 1}`}
+                  onClick={() => setCurrentSlide(index)}
+                  className={`h-2 w-2 rounded-full transition-all ${
+                    currentSlide === index ? "bg-slate-900" : "bg-slate-300"
+                  }`}
+                />
+              ))}
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                onClick={nextSlide}
+                aria-label="Next summary page"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}
-
-      {(state.phase === "success" || state.phase === "empty") && state.distribution ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Distribution</CardTitle>
-            <CardDescription>Counts and percentages across first-draw lead results.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <DistributionBar label="Not detected" value={state.distribution.notDetected} />
-            <DistributionBar label="Detected" value={state.distribution.detected} />
-            <DistributionBar label="Elevated" value={state.distribution.elevated} />
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {hasZipTrends && state.zipTrends ? <ZipTrendTable summary={state.zipTrends} /> : null}
 
       {state.phase === "empty" ? (
-        <Card>
+        <Card className="bg-white">
           <CardContent className="py-8">
             <p className="text-sm text-muted-foreground">
-              No individual lead-at-the-tap samples were found for this ZIP code yet.
+              No lead-at-the-tap samples were found for this ZIP code yet.
             </p>
           </CardContent>
         </Card>
       ) : null}
 
       {state.phase === "success" ? (
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold">Recent Tests</h2>
-          {state.recentTests.length > 0 ? (
-            <div className="space-y-3">
-              {state.recentTests.map((sample) => (
-                <RecentTestCard key={sample.id} sample={sample} />
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="py-6">
-                <p className="text-sm text-muted-foreground">
-                  No individual sample rows were returned for this ZIP. The ZIP trend summary above
-                  still shows the year-by-year aggregate data.
+        <Card className="bg-white">
+          <CardHeader>
+            <CardTitle className="text-lg">Details</CardTitle>
+            <CardDescription>
+              Expand only if you want the individual records behind the summary.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <details className="rounded-lg border border-border p-3">
+              <summary className="cursor-pointer font-medium">
+                Recent Tests
+              </summary>
+              {state.recentTests.length > 0 ? (
+                <div className="mt-3 space-y-2">
+                  {state.recentTests.map((sample) => (
+                    <RecentTestCard key={sample.id} sample={sample} />
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  No individual sample rows were returned for this ZIP.
                 </p>
-              </CardContent>
-            </Card>
-          )}
-        </section>
+              )}
+            </details>
+          </CardContent>
+        </Card>
       ) : null}
     </div>
   );

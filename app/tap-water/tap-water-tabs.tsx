@@ -8,21 +8,17 @@ import { TapWaterPageClient } from "./tap-water-page-client";
 export function TapWaterTabs() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
-      <header className="space-y-2">
+      <header className="space-y-2 flex justify-center">
         <h1 className="text-3xl font-bold">Tap Water Quality Lookup</h1>
-        <p className="max-w-3xl text-muted-foreground">
-          Check your local water quality using EPA data for any U.S. water system,
-          or look up NYC-specific lead testing results and ZIP-level trends.
-        </p>
       </header>
 
-      <Tabs defaultValue="epa">
-        <TabsList>
-          <TabsTrigger value="epa" className="gap-1.5">
+      <Tabs defaultValue="epa" className="space-y-2">
+        <TabsList className="mx-auto grid h-9 w-full max-w-2xl grid-cols-2">
+          <TabsTrigger value="epa" className="h-6 gap-1.5">
             <Droplets className="size-4" />
             Nationwide (EPA)
           </TabsTrigger>
-          <TabsTrigger value="nyc" className="gap-1.5">
+          <TabsTrigger value="nyc" className="h-6 gap-1.5">
             <FlaskConical className="size-4" />
             NYC Lead Testing
           </TabsTrigger>
