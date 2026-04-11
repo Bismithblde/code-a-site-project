@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { Search, AlertTriangle, CheckCircle, Eye, ExternalLink, Droplets, Users, MapPin, Shield } from "lucide-react";
+import { WaterQualityMap } from "@/components/WaterQualityMap";
 
 interface WaterSystem {
   pwsid: string;
@@ -296,6 +297,11 @@ export function EpaSearchClient() {
               Source: EPA ECHO · SDWA Compliance Data
             </p>
           </div>
+
+          {/* Map visualization */}
+          {results.systems.length > 0 && results.query.state && (
+            <WaterQualityMap systems={results.systems} stateCode={results.query.state} />
+          )}
 
           {results.systems.length === 0 ? (
             <div className="glass-card p-8 text-center">
