@@ -5,47 +5,96 @@ import Link from "next/link";
 import Image from "next/image";
 import Head from "next/head";
 
-/* ── Bottle data with local images ── */
-const bottles = [
-  { name: "Evian", image: "/images/evian.png", x: 6, y: 48, rotation: -15, scale: 0.85 },
-  { name: "Fiji", image: "/images/fiji.png", x: 22, y: 60, rotation: 10, scale: 0.9 },
-  { name: "Gerolsteiner", image: "/images/gerolsteiner.png", x: 40, y: 45, rotation: -8, scale: 0.8 },
-  { name: "Topo Chico", image: "/images/topo-chico.png", x: 58, y: 58, rotation: 12, scale: 1.05 },
-  { name: "Liquid Death", image: "/images/liquid-death.png", x: 74, y: 46, rotation: -20, scale: 0.82 },
-  { name: "Mountain Valley", image: "/images/mountain-valley.png", x: 88, y: 55, rotation: 8, scale: 0.85 },
+/* ── Bottle data with local images ──
+ *
+ *  x / y        : base position as % of hero width/height
+ *  rotation     : initial tilt in degrees
+ *  scale        : visual size (doubles as perceived depth — smaller = deeper)
+ *  bobDuration  : seconds for one full bob cycle (keeps bottles out of sync)
+ *  bobDelay     : animation-delay offset in seconds
+ *  parallaxRate : how many px the bottle drifts per 100px of scroll progress
+ *                 (smaller scale bottles drift less — they're "deeper")
+ *  opacity      : base opacity — slight variation sells the depth illusion
+ */
+const bottles: Array<{
+  name: string;
+  image: string;
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+  bobDuration: number;
+  bobDelay: number;
+  parallaxRate: number;
+  opacity: number;
+}> = [
+  { name: "Evian",          image: "/images/evian.png",          x: 5,  y: 52, rotation: -14, scale: 0.78, bobDuration: 5.8, bobDelay: 0.0, parallaxRate: 28, opacity: 0.92 },
+  { name: "Fiji",           image: "/images/fiji.png",           x: 20, y: 61, rotation:  11, scale: 0.92, bobDuration: 6.4, bobDelay: 1.1, parallaxRate: 38, opacity: 0.96 },
+  { name: "Gerolsteiner",   image: "/images/gerolsteiner.png",   x: 38, y: 47, rotation:  -7, scale: 0.72, bobDuration: 7.1, bobDelay: 0.6, parallaxRate: 22, opacity: 0.82 },
+  { name: "Topo Chico",     image: "/images/topo-chico.png",     x: 57, y: 59, rotation:  13, scale: 1.00, bobDuration: 5.3, bobDelay: 1.8, parallaxRate: 44, opacity: 1.00 },
+  { name: "Liquid Death",   image: "/images/liquid-death.png",   x: 74, y: 48, rotation: -19, scale: 0.80, bobDuration: 6.9, bobDelay: 0.3, parallaxRate: 32, opacity: 0.88 },
+  { name: "Mountain Valley",image: "/images/mountain-valley.png",x: 89, y: 57, rotation:   9, scale: 0.86, bobDuration: 6.2, bobDelay: 2.2, parallaxRate: 36, opacity: 0.94 },
 ];
 
-const CYCLE_MS = 3200;
-const FADE_MS = 900;
-const TOTAL_FRAMES = 30; // 30 frames = fast extraction, still smooth
+const TOTAL_FRAMES = 30;
 const FRAME_W = 960;
 const FRAME_H = 540;
 
-/* ── Floating Bottle ── */
-function FloatingBottle({ name, image, style, opacity }: {
-  name: string; image: string; style: React.CSSProperties; opacity: number;
+/* ── Single always-visible floating bottle ── */
+function FloatingBottle({
+  name, image, x, y, rotation, scale, bobDuration, bobDelay, parallaxRate, opacity, scrollY,
+}: {
+  name: string; image: string;
+  x: number; y: number; rotation: number; scale: number;
+  bobDuration: number; bobDelay: number; parallaxRate: number;
+  opacity: number; scrollY: number;
 }) {
+  // Parallax: bottles drift upward (negative Y) as user scrolls down.
+  // Rate is relative so deeper (smaller) bottles move less.
+  const parallaxOffset = -(scrollY * parallaxRate) / 100;
+
   return (
-    <div className="absolute pointer-events-none select-none" style={{
-      ...style, opacity, transition: `opacity ${FADE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`,
-      filter: "drop-shadow(0 8px 25px rgba(0,0,0,0.4))",
-    }}>
-      <Image src={image} alt={`${name} water bottle`} width={80} height={200}
-        className="object-contain max-h-[160px] sm:max-h-[200px]" unoptimized />
+    <div
+      className="absolute pointer-events-none select-none"
+      style={{
+        left: `${x}%`,
+        top: `${y}%`,
+        opacity,
+        // CSS custom property consumed by the bottleFloat keyframe in globals.css
+        ["--bottle-rotate" as string]: `${rotation}deg`,
+        // Parallax shift stacked on top of the CSS bob animation via a wrapper
+        transform: `translateY(${parallaxOffset}px) scale(${scale})`,
+        // Bob animation — still runs via CSS, parallax applied as inline transform wrapper
+        animation: `bottleFloat ${bobDuration}s ease-in-out infinite`,
+        animationDelay: `${bobDelay}s`,
+        filter: "drop-shadow(0 10px 28px rgba(0,0,0,0.45)) drop-shadow(0 2px 8px rgba(0,100,180,0.3))",
+        // Nudge transform-origin so rotation pivots from the bottle base
+        transformOrigin: "50% 85%",
+        willChange: "transform",
+      }}
+    >
+      <Image
+        src={image}
+        alt={`${name} water bottle`}
+        width={80}
+        height={200}
+        className="object-contain max-h-[140px] sm:max-h-[180px] md:max-h-[210px]"
+        unoptimized
+      />
     </div>
   );
 }
 
 /* ── Main Hero ── */
 export function OceanHeroSection() {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [opacities, setOpacities] = useState(() => bottles.map((_, i) => (i === 0 ? 1 : 0)));
   const sectionRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const framesRef = useRef<ImageBitmap[]>([]);
-  const [loadProgress, setLoadProgress] = useState(0); // 0 to 1
+  const [loadProgress, setLoadProgress] = useState(0);
   const currentFrameRef = useRef(0);
   const rafRef = useRef<number>(0);
+  // Normalised scroll progress 0→1 for parallax (not the raw pixel value)
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   // Extract frames progressively — show first frame ASAP
   useEffect(() => {
@@ -100,7 +149,7 @@ export function OceanHeroSection() {
     return () => { video.pause(); video.src = ""; };
   }, []);
 
-  // Scroll-driven canvas scrubbing
+  // Scroll-driven canvas scrubbing + parallax progress
   useEffect(() => {
     const onScroll = () => {
       cancelAnimationFrame(rafRef.current);
@@ -108,11 +157,17 @@ export function OceanHeroSection() {
         const section = sectionRef.current;
         const canvas = canvasRef.current;
         const frames = framesRef.current;
-        if (!section || !canvas || frames.length === 0) return;
+        if (!section || !canvas) return;
 
         const rect = section.getBoundingClientRect();
         const scrollRange = section.offsetHeight - window.innerHeight;
         const progress = Math.max(0, Math.min(1, -rect.top / scrollRange));
+
+        // Update parallax state — raw scroll pixels relative to section start
+        const rawScrolled = Math.max(0, -rect.top);
+        setScrollProgress(rawScrolled);
+
+        if (frames.length === 0) return;
         const frameIndex = Math.min(
           Math.floor(progress * frames.length),
           frames.length - 1
@@ -132,20 +187,6 @@ export function OceanHeroSection() {
       window.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(rafRef.current);
     };
-  }, []);
-
-  // Bottle phase-in / phase-out
-  useEffect(() => {
-    let current = 0;
-    const interval = setInterval(() => {
-      setOpacities((prev) => { const n = [...prev]; n[current] = 0; return n; });
-      setTimeout(() => {
-        current = (current + 1) % bottles.length;
-        setActiveIndex(current);
-        setOpacities((prev) => { const n = [...prev]; n[current] = 1; return n; });
-      }, FADE_MS);
-    }, CYCLE_MS);
-    return () => clearInterval(interval);
   }, []);
 
   const loaded = loadProgress >= 1;
@@ -185,16 +226,23 @@ export function OceanHeroSection() {
             zIndex: 2,
           }} />
 
-          {/* ── Bottles ── */}
+          {/* ── Bottles — all visible simultaneously, scattered & floating ── */}
           <div className="absolute inset-0" style={{ zIndex: 5 }} aria-hidden="true">
-            {bottles.map((bottle, i) => (
-              <FloatingBottle key={bottle.name} name={bottle.name} image={bottle.image}
-                opacity={opacities[i]} style={{
-                  left: `${bottle.x}%`, top: `${bottle.y}%`,
-                  transform: `rotate(${bottle.rotation}deg) scale(${bottle.scale})`,
-                  animation: `bottleFloat ${4 + i * 0.5}s ease-in-out infinite`,
-                  animationDelay: `${i * 0.4}s`,
-                }} />
+            {bottles.map((bottle) => (
+              <FloatingBottle
+                key={bottle.name}
+                name={bottle.name}
+                image={bottle.image}
+                x={bottle.x}
+                y={bottle.y}
+                rotation={bottle.rotation}
+                scale={bottle.scale}
+                bobDuration={bottle.bobDuration}
+                bobDelay={bottle.bobDelay}
+                parallaxRate={bottle.parallaxRate}
+                opacity={bottle.opacity}
+                scrollY={scrollProgress}
+              />
             ))}
           </div>
 
@@ -214,9 +262,8 @@ export function OceanHeroSection() {
               Track your hydration. Discover what&apos;s in every bottle.
             </p>
             <div className="mt-4 h-6 overflow-hidden">
-              <span className="text-sm font-medium tracking-[0.2em] uppercase text-white/50"
-                style={{ opacity: opacities[activeIndex], transition: `opacity ${FADE_MS}ms ease` }}>
-                {bottles[activeIndex].name}
+              <span className="text-sm font-medium tracking-[0.2em] uppercase text-white/40">
+                {bottles.map((b) => b.name).join(" · ")}
               </span>
             </div>
             <div className="mt-8 flex flex-wrap gap-4 justify-center">
