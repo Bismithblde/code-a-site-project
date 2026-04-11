@@ -20,6 +20,10 @@ export async function GET(request: NextRequest) {
         data: result.data.map(serializeSample),
         meta: result.meta,
         nearbySummary: result.nearbySummary,
+        leadSummary: result.leadSummary,
+        distribution: result.distribution,
+        recentTests: result.recentTests.map(serializeSample),
+        notes: result.notes,
         filters,
       });
     }

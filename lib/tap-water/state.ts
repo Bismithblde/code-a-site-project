@@ -1,4 +1,4 @@
-import type { TapWaterNearbySummary, TapWaterMeta, TapWaterSample } from "./types";
+import type { TapWaterMeta, TapWaterSample, TapWaterSearchResponse } from "./types";
 
 export type TapWaterPhase =
   | "idle"
@@ -13,8 +13,11 @@ export type TapWaterPageState = {
   submittedQuery: string | null;
   phase: TapWaterPhase;
   data: TapWaterSample[];
+  recentTests: TapWaterSample[];
   meta: TapWaterMeta | null;
-  nearbySummary: TapWaterNearbySummary | null;
+  leadSummary: TapWaterSearchResponse["leadSummary"] | null;
+  distribution: TapWaterSearchResponse["distribution"] | null;
+  notes: string | null;
   errorMessage: string | null;
 };
 
@@ -26,7 +29,10 @@ export type TapWaterAction =
       query: string;
       data: TapWaterSample[];
       meta: TapWaterMeta;
-      nearbySummary: TapWaterNearbySummary;
+      recentTests: TapWaterSample[];
+      leadSummary: TapWaterSearchResponse["leadSummary"];
+      distribution: TapWaterSearchResponse["distribution"];
+      notes: string | undefined;
     }
   | { type: "validationFailed"; query: string; message: string }
   | { type: "searchFailed"; query: string; message: string };
@@ -36,8 +42,11 @@ export const initialTapWaterState: TapWaterPageState = {
   submittedQuery: null,
   phase: "idle",
   data: [],
+  recentTests: [],
   meta: null,
-  nearbySummary: null,
+  leadSummary: null,
+  distribution: null,
+  notes: null,
   errorMessage: null,
 };
 
@@ -64,10 +73,13 @@ export function tapWaterReducer(
       return {
         ...state,
         submittedQuery: action.query,
-        phase: action.data.length === 0 ? "empty" : "success",
+        phase: action.recentTests.length === 0 ? "empty" : "success",
         data: action.data,
+        recentTests: action.recentTests,
         meta: action.meta,
-        nearbySummary: action.nearbySummary,
+        leadSummary: action.leadSummary ?? null,
+        distribution: action.distribution ?? null,
+        notes: action.notes ?? null,
         errorMessage: null,
       };
     case "validationFailed":

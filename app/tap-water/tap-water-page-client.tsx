@@ -1,21 +1,10 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { Search } from "lucide-react";
 import { useTapWaterSearch } from "@/lib/hooks/use-tap-water-search";
-import {
-  formatDistanceMiles,
-  formatFilterRecommendationLabel,
-  formatLeadRiskLabel,
-  formatLeadValue,
-  formatProbability,
-  formatSampleDate,
-  formatStatusLabel,
-  getStatusBadgeVariant,
-  shouldBuyFilter,
-} from "@/lib/tap-water/format";
+import { formatLeadValue, formatSampleDate } from "@/lib/tap-water/format";
 import type { TapWaterSample } from "@/lib/tap-water/types";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,67 +27,64 @@ function SummaryField({
   );
 }
 
-function SampleCard({ sample }: { sample: TapWaterSample }) {
-  const overallStatus = sample.summary.overall;
-  const reasons = sample.healthSummary.reasons ?? [];
-  const keyReasons = reasons.slice(0, 2);
-  const maxLead = [sample.leadFirstDraw.value, sample.leadFlushOneToTwo.value, sample.leadFlushFive.value]
-    .filter((value): value is number => value != null)
-    .sort((left, right) => right - left)[0] ?? null;
+function formatPercent(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) {
+    return "0%";
+  }
 
+  return `${value.toFixed(1)}%`;
+}
+
+function formatCountPercent(value: { count: number; percent: number }) {
+  return `${value.count} (${formatPercent(value.percent)})`;
+}
+
+function RecentTestCard({ sample }: { sample: TapWaterSample }) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <CardTitle className="text-base">
-              {sample.zipCode ? `ZIP ${sample.zipCode}` : sample.location ?? "Unknown location"}
-            </CardTitle>
-            <CardDescription>
-              {sample.borough ?? "NYC"} • Sample {sample.sampleNumber ?? "N/A"} •{" "}
-              {formatSampleDate(sample)}
-            </CardDescription>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={getStatusBadgeVariant(overallStatus)}>
-              {formatStatusLabel(overallStatus)}
-            </Badge>
-            <Badge variant="outline">{formatDistanceMiles(sample.distanceMiles)}</Badge>
-          </div>
-        </div>
+        <CardTitle className="text-base">
+          {sample.zipCode ? `ZIP ${sample.zipCode}` : "ZIP unavailable"}
+        </CardTitle>
+        <CardDescription>
+          {sample.borough ?? "NYC"} • {formatSampleDate(sample)}
+        </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <SummaryField label="Lead Risk" value={formatLeadRiskLabel(sample.summary.leadRisk)} />
-          <SummaryField label="Highest Lead" value={formatLeadValue(maxLead)} />
-          <SummaryField
-            label="Filter Decision"
-            value={formatFilterRecommendationLabel(sample.summary.filterRecommendation)}
-          />
-        </div>
-        {keyReasons.length > 0 ? (
-          <ul className="space-y-1 text-sm text-muted-foreground">
-            {keyReasons.map((reason) => (
-              <li key={reason}>• {reason}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">No health reasons were provided.</p>
-        )}
-        {reasons.length > 2 ? (
-          <details className="text-sm text-muted-foreground">
-            <summary className="cursor-pointer select-none text-foreground">
-              Show all reasons
-            </summary>
-            <ul className="mt-2 space-y-1">
-              {reasons.map((reason) => (
-                <li key={reason}>• {reason}</li>
-              ))}
-            </ul>
-          </details>
-        ) : null}
+      <CardContent className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <SummaryField label="First Draw Lead" value={formatLeadValue(sample.leadFirstDraw.value)} />
+        <SummaryField
+          label="1-2 Min Flush Lead"
+          value={formatLeadValue(sample.leadFlushOneToTwo.value)}
+        />
+        <SummaryField label="5 Min Flush Lead" value={formatLeadValue(sample.leadFlushFive.value)} />
+        <SummaryField label="First Draw Copper" value={formatLeadValue(sample.copperFirstDraw.value)} />
+        <SummaryField
+          label="1-2 Min Flush Copper"
+          value={formatLeadValue(sample.copperFlushOneToTwo.value)}
+        />
+        <SummaryField label="5 Min Flush Copper" value={formatLeadValue(sample.copperFlushFive.value)} />
       </CardContent>
     </Card>
+  );
+}
+
+function DistributionBar({
+  label,
+  value,
+}: {
+  label: string;
+  value: { count: number; percent: number };
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between text-sm">
+        <span>{label}</span>
+        <span className="text-muted-foreground">{formatCountPercent(value)}</span>
+      </div>
+      <div className="h-2 w-full rounded bg-muted">
+        <div className="h-full rounded bg-primary" style={{ width: `${Math.min(value.percent, 100)}%` }} />
+      </div>
+    </div>
   );
 }
 
@@ -139,22 +125,19 @@ export function TapWaterPageClient({
     [submitSearch],
   );
 
-  const summary = state.nearbySummary;
-  const sortedSamples = useMemo(() => state.data, [state.data]);
-
   return (
     <div className="mx-auto w-full max-w-5xl space-y-6 px-4 py-8">
       <header className="space-y-2">
-        <h1 className="text-3xl font-bold">NYC Tap Water Lookup</h1>
+        <h1 className="text-3xl font-bold">NYC Home Lead Results by ZIP</h1>
         <p className="max-w-3xl text-muted-foreground">
-          Search by ZIP code for lead-at-the-tap samples and a quick recommendation on
-          whether you should buy a certified lead-removal filter.
+          Search by ZIP code to see aggregated lead-at-the-tap results across homes. Lead levels can
+          vary across homes in the same ZIP.
         </p>
       </header>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Search Nearby Samples</CardTitle>
+          <CardTitle className="text-lg">Search ZIP Lead Results</CardTitle>
           <CardDescription>
             Enter a 5-digit NYC ZIP code like <span className="font-medium">11356</span>.
           </CardDescription>
@@ -189,7 +172,7 @@ export function TapWaterPageClient({
         <Card>
           <CardContent className="py-8">
             <p className="text-sm text-muted-foreground">
-              Enter a ZIP code to see lead results and a filter recommendation.
+              Enter a ZIP code to see aggregated lead results and distribution across homes.
             </p>
           </CardContent>
         </Card>
@@ -200,10 +183,8 @@ export function TapWaterPageClient({
       {state.phase === "error" ? (
         <Card>
           <CardHeader>
-            <CardTitle>Could not load nearby samples</CardTitle>
-            <CardDescription>
-              Check your input and try again.
-            </CardDescription>
+            <CardTitle>Could not load ZIP lead results</CardTitle>
+            <CardDescription>Check your input and try again.</CardDescription>
           </CardHeader>
           <CardContent>
             <Button onClick={() => submitSearch()} variant="outline">
@@ -213,56 +194,56 @@ export function TapWaterPageClient({
         </Card>
       ) : null}
 
-      {(state.phase === "success" || state.phase === "empty") && summary ? (
+      {(state.phase === "success" || state.phase === "empty") && state.leadSummary ? (
         <Card>
           <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <CardTitle className="text-lg">Nearby Summary</CardTitle>
-                <CardDescription>
-                  {state.meta?.zip
-                    ? `ZIP ${state.meta.zip} • ${summary.sampleCount} nearby sample${
-                        summary.sampleCount === 1 ? "" : "s"
-                      }`
-                    : `${summary.sampleCount} matching sample${
-                        summary.sampleCount === 1 ? "" : "s"
-                      }`}
-                </CardDescription>
-              </div>
-              <Badge variant={getStatusBadgeVariant(summary.overall)}>
-                Overall: {formatStatusLabel(summary.overall)}
-              </Badge>
-            </div>
+            <CardTitle className="text-lg">Lead Overview</CardTitle>
+            <CardDescription>
+              {state.meta?.zip ? `ZIP ${state.meta.zip}` : "ZIP"} • Lead results vary across homes in this ZIP.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <SummaryField
-              label="Lead Risk"
-              value={formatLeadRiskLabel(summary.leadRisk)}
-            />
-            <SummaryField
-              label="Should Buy Filter"
-              value={shouldBuyFilter(summary.filterRecommendation) ? "Yes" : "No"}
-            />
-            <SummaryField
-              label="Recommendation"
-              value={formatFilterRecommendationLabel(summary.filterRecommendation)}
-            />
-            <SummaryField
-              label="Avg Lead (First Draw)"
-              value={formatLeadValue(summary.averageLeadFirstDrawMgL ?? null)}
-            />
-            <SummaryField
-              label="High-Risk Probability"
-              value={formatProbability(summary.leadRiskDistribution?.high)}
-            />
-            <SummaryField
-              label="Nearest Distance"
-              value={formatDistanceMiles(summary.nearestDistanceMiles)}
-            />
-            <SummaryField
-              label="Sample Count"
-              value={String(summary.sampleCount)}
-            />
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <SummaryField label="Total Tests" value={String(state.leadSummary.sampleCount)} />
+              <SummaryField
+                label="Most Recent Test Date"
+                value={state.leadSummary.mostRecentTestDate ?? "N/A"}
+              />
+              <SummaryField
+                label="Median First Draw Lead"
+                value={formatLeadValue(state.leadSummary.medianFirstDraw)}
+              />
+              <SummaryField
+                label="Maximum First Draw Lead"
+                value={formatLeadValue(state.leadSummary.maxFirstDraw)}
+              />
+              <SummaryField
+                label="Percent Detected (> 0)"
+                value={formatPercent(state.leadSummary.percentDetected)}
+              />
+              <SummaryField
+                label="Percent Elevated (>= 0.015 mg/L)"
+                value={formatPercent(state.leadSummary.percentElevated)}
+              />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {state.notes ??
+                "First draw reflects water that sat in pipes, flushed values may better reflect deeper plumbing/system conditions, and results vary by home."}
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {(state.phase === "success" || state.phase === "empty") && state.distribution ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Distribution</CardTitle>
+            <CardDescription>Counts and percentages across first-draw lead results.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <DistributionBar label="Not detected" value={state.distribution.notDetected} />
+            <DistributionBar label="Detected" value={state.distribution.detected} />
+            <DistributionBar label="Elevated" value={state.distribution.elevated} />
           </CardContent>
         </Card>
       ) : null}
@@ -279,10 +260,10 @@ export function TapWaterPageClient({
 
       {state.phase === "success" ? (
         <section className="space-y-3">
-          <h2 className="text-xl font-semibold">Nearby Samples</h2>
+          <h2 className="text-xl font-semibold">Recent Tests</h2>
           <div className="space-y-3">
-            {sortedSamples.map((sample) => (
-              <SampleCard key={sample.id} sample={sample} />
+            {state.recentTests.map((sample) => (
+              <RecentTestCard key={sample.id} sample={sample} />
             ))}
           </div>
         </section>

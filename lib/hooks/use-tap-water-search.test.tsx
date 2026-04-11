@@ -79,19 +79,50 @@ test("loads successful ZIP search response", async () => {
             sortDir: "desc",
             nearestMatches: [],
           },
-          nearbySummary: {
+          leadSummary: {
             sampleCount: 1,
-            nearestDistanceMiles: null,
-            overall: "alert",
-            leadRisk: "high",
-            filterRecommendation: "strongly_recommended",
-            leadRiskDistribution: {
-              low: 0,
-              elevated: 0,
-              high: 1,
-              unknown: 0,
-            },
+            mostRecentTestDate: "2024-01-01",
+            medianFirstDraw: 0.016,
+            maxFirstDraw: 0.016,
+            percentDetected: 100,
+            percentElevated: 100,
           },
+          distribution: {
+            notDetected: { count: 0, percent: 0 },
+            detected: { count: 0, percent: 0 },
+            elevated: { count: 1, percent: 100 },
+          },
+          recentTests: [
+            {
+              id: "sample-1",
+              sampleNumber: "1",
+              sampleDate: "2024-01-01",
+              sampleTime: null,
+              sampledAt: "2024-01-01T08:00:00",
+              dateReceived: "2024-01-02",
+              zipCode: "11356",
+              borough: "Queens",
+              location: "Queens • 11356",
+              latitude: null,
+              longitude: null,
+              leadFirstDraw: { raw: "0.016", value: 0.016, comparator: "eq", parseError: null },
+              leadFlushOneToTwo: { raw: "0.004", value: 0.004, comparator: "eq", parseError: null },
+              leadFlushFive: { raw: null, value: null, comparator: null, parseError: null },
+              copperFirstDraw: { raw: "0.17", value: 0.17, comparator: "eq", parseError: null },
+              copperFlushOneToTwo: { raw: null, value: null, comparator: null, parseError: null },
+              copperFlushFive: { raw: null, value: null, comparator: null, parseError: null },
+              summary: {
+                leadRisk: "high",
+                overall: "alert",
+                filterRecommendation: "strongly_recommended",
+              },
+              healthSummary: {
+                status: "alert",
+                reasons: ["Lead is at or above the EPA 0.015 mg/L action level."],
+              },
+            },
+          ],
+          notes: "Lead results vary by home and plumbing conditions.",
         }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       )) as typeof fetch;
@@ -109,6 +140,7 @@ test("loads successful ZIP search response", async () => {
     await waitFor(() => {
       assert.equal(result.current.state.phase, "success");
       assert.equal(result.current.state.data.length, 1);
+      assert.equal(result.current.state.leadSummary?.sampleCount, 1);
       assert.equal(result.current.state.meta?.zip, "11356");
     });
   } finally {

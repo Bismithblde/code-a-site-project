@@ -19,6 +19,8 @@ import type {
   WaterSampleFilters,
 } from "./types";
 
+const ELEVATED_LEAD_THRESHOLD_MG_L = 0.015;
+
 async function loadWaterDataset() {
   const { getWaterDataset } = await import("./repository");
   return getWaterDataset();
@@ -56,6 +58,36 @@ function toTimestamp(sample: WaterSample) {
 
   const parsed = Date.parse(source);
   return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+
+function toRoundedPercent(value: number, total: number) {
+  if (!total || total <= 0) {
+    return 0;
+  }
+
+  return Number(((value / total) * 100).toFixed(1));
+}
+
+function getMedian(values: number[]) {
+  if (values.length === 0) {
+    return null;
+  }
+
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+
+  if (sorted.length % 2 === 1) {
+    return sorted[middle] ?? null;
+  }
+
+  const left = sorted[middle - 1];
+  const right = sorted[middle];
+
+  if (left == null || right == null) {
+    return null;
+  }
+
+  return (left + right) / 2;
 }
 
 function getRecencyWeights(samples: WaterSample[]) {
@@ -203,6 +235,67 @@ export function buildProbabilitySummary(samples: WaterSample[]) {
       weights,
     ),
     leadRiskDistribution: distribution,
+  };
+}
+
+export function computeLeadStats(records: WaterSample[]) {
+  const firstDrawValues = records
+    .map((record) => record.leadFirstDraw.value)
+    .filter((value): value is number => value != null && Number.isFinite(value));
+  const detectedCount = firstDrawValues.filter((value) => value > 0).length;
+  const elevatedCount = firstDrawValues.filter(
+    (value) => value >= ELEVATED_LEAD_THRESHOLD_MG_L,
+  ).length;
+  const mostRecentTestDate =
+    sortSamples(records, "sampleDate", "desc")[0]?.sampleDate ?? null;
+
+  return {
+    sampleCount: records.length,
+    mostRecentTestDate,
+    medianFirstDraw: getMedian(firstDrawValues),
+    maxFirstDraw:
+      firstDrawValues.length > 0
+        ? Math.max(...firstDrawValues)
+        : null,
+    percentDetected: toRoundedPercent(detectedCount, records.length),
+    percentElevated: toRoundedPercent(elevatedCount, records.length),
+  };
+}
+
+export function computeLeadDistribution(records: WaterSample[]) {
+  let notDetected = 0;
+  let detected = 0;
+  let elevated = 0;
+
+  records.forEach((record) => {
+    const value = record.leadFirstDraw.value;
+
+    if (value == null || !Number.isFinite(value) || value <= 0) {
+      notDetected += 1;
+      return;
+    }
+
+    if (value >= ELEVATED_LEAD_THRESHOLD_MG_L) {
+      elevated += 1;
+      return;
+    }
+
+    detected += 1;
+  });
+
+  return {
+    notDetected: {
+      count: notDetected,
+      percent: toRoundedPercent(notDetected, records.length),
+    },
+    detected: {
+      count: detected,
+      percent: toRoundedPercent(detected, records.length),
+    },
+    elevated: {
+      count: elevated,
+      percent: toRoundedPercent(elevated, records.length),
+    },
   };
 }
 
@@ -426,35 +519,20 @@ export async function querySamples(
   };
 }
 
-export async function querySamplesByZip(
-  filters: WaterSampleFilters,
-): Promise<NearbyQueryResult> {
-  const zip = normalizeZipCode(filters.zip);
+export function getRecentTests(records: WaterSample[], limit = 5) {
+  return sortSamples(records, "sampleDate", "desc").slice(0, coerceLimit(limit));
+}
 
-  if (!zip || !/^\d{5}$/.test(zip)) {
-    throw new WaterQualityValidationError(
-      "ZIP code must be a valid 5-digit NYC ZIP code.",
-    );
-  }
-
-  const dataset = await loadWaterDataset();
-  const matching = dataset.records.filter((sample) => sample.zipCode === zip);
-  const sorted = sortSamples(matching, "sampleDate", "desc");
-  const limited = sorted.slice(0, coerceLimit(filters.limit));
-  const summarized = limited.map((sample) => ({ ...sample }));
-
-  /*
-   * Previous ZIP nearest path (kept for restore):
-   * const origin = resolveZipCodeOrigin(filters.zip);
-   * const nearestSamples = findNearestSamplesFromOrigin(
-   *   dataset.records,
-   *   origin.latitude,
-   *   origin.longitude,
-   *   filters.limit,
-   * );
-   */
-
+export function buildZipLeadQueryResult(
+  zip: string,
+  matching: WaterSample[],
+  limit?: number,
+): NearbyQueryResult {
+  const recentTests = getRecentTests(matching, limit);
+  const summarized = recentTests.map((sample) => ({ ...sample }));
   const nearbySummary = buildProbabilitySummary(matching);
+  const leadSummary = computeLeadStats(matching);
+  const distribution = computeLeadDistribution(matching);
 
   return {
     data: summarized,
@@ -473,7 +551,40 @@ export async function querySamplesByZip(
       ...nearbySummary,
       sampleCount: matching.length,
     },
+    leadSummary,
+    distribution,
+    recentTests: summarized,
+    notes:
+      "Lead results vary by home and plumbing conditions. First draw reflects water that sat in household pipes, while flushed samples can better reflect deeper plumbing or system conditions.",
   };
+}
+
+export async function querySamplesByZip(
+  filters: WaterSampleFilters,
+): Promise<NearbyQueryResult> {
+  const zip = normalizeZipCode(filters.zip);
+
+  if (!zip || !/^\d{5}$/.test(zip)) {
+    throw new WaterQualityValidationError(
+      "ZIP code must be a valid 5-digit NYC ZIP code.",
+    );
+  }
+
+  const dataset = await loadWaterDataset();
+  const matching = dataset.records.filter((sample) => sample.zipCode === zip);
+
+  /*
+   * Previous ZIP nearest path (kept for restore):
+   * const origin = resolveZipCodeOrigin(filters.zip);
+   * const nearestSamples = findNearestSamplesFromOrigin(
+   *   dataset.records,
+   *   origin.latitude,
+   *   origin.longitude,
+   *   filters.limit,
+   * );
+   */
+
+  return buildZipLeadQueryResult(zip, matching, filters.limit);
 }
 
 export async function getRecentSamples(limit = 10) {

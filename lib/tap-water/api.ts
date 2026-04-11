@@ -5,6 +5,10 @@ type WaterApiSuccessResponse = {
   data: TapWaterSearchResponse["data"];
   meta: TapWaterSearchResponse["meta"];
   nearbySummary?: TapWaterSearchResponse["nearbySummary"];
+  leadSummary?: TapWaterSearchResponse["leadSummary"];
+  distribution?: TapWaterSearchResponse["distribution"];
+  recentTests?: TapWaterSearchResponse["recentTests"];
+  notes?: TapWaterSearchResponse["notes"];
 };
 
 type WaterApiErrorResponse = {
@@ -63,7 +67,7 @@ export async function searchTapWaterSamples(
     const message =
       typeof (body as WaterApiErrorResponse).error === "string"
         ? (body as WaterApiErrorResponse).error
-        : "Failed to fetch nearby tap water samples.";
+        : "Failed to fetch ZIP lead results.";
     throw new Error(message);
   }
 
@@ -75,5 +79,9 @@ export async function searchTapWaterSamples(
     data,
     meta,
     nearbySummary: successBody.nearbySummary ?? buildFallbackNearbySummary(data),
+    leadSummary: successBody.leadSummary,
+    distribution: successBody.distribution,
+    recentTests: successBody.recentTests ?? data,
+    notes: successBody.notes,
   };
 }

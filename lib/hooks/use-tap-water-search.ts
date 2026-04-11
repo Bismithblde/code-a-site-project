@@ -54,7 +54,10 @@ export function useTapWaterSearch(options?: UseTapWaterSearchOptions) {
           query,
           data: result.data,
           meta: result.meta,
-          nearbySummary: result.nearbySummary,
+          recentTests: result.recentTests ?? result.data,
+          leadSummary: result.leadSummary,
+          distribution: result.distribution,
+          notes: result.notes,
         });
       } catch (error) {
         dispatch({
@@ -63,7 +66,7 @@ export function useTapWaterSearch(options?: UseTapWaterSearchOptions) {
           message:
             error instanceof Error
               ? error.message
-              : "Failed to fetch nearby tap water samples.",
+              : "Failed to fetch ZIP lead results.",
         });
       }
     },

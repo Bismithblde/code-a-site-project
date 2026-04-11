@@ -5,61 +5,32 @@ import { setupDomEnvironment } from "@/lib/test/setup-dom";
 import { initialTapWaterState, type TapWaterPageState } from "@/lib/tap-water/state";
 import { TapWaterPageClient } from "./tap-water-page-client";
 
-const successPayload = {
-  data: [
-    {
-      id: "sample-77050",
-      sampleNumber: "77050",
-      sampleDate: "2015-01-03",
-      sampleTime: null,
-      sampledAt: "2015-01-03T11:32:00",
-      dateReceived: "2015-01-04",
-      zipCode: "11356",
-      borough: "Queens",
-      location: "Queens • 11356",
-      latitude: null,
-      longitude: null,
-      leadFirstDraw: { raw: "0.019", value: 0.019, comparator: "eq", parseError: null },
-      leadFlushOneToTwo: { raw: "0.004", value: 0.004, comparator: "eq", parseError: null },
-      leadFlushFive: { raw: null, value: null, comparator: null, parseError: null },
-      copperFirstDraw: { raw: "0.313", value: 0.313, comparator: "eq", parseError: null },
-      copperFlushOneToTwo: { raw: "0.043", value: 0.043, comparator: "eq", parseError: null },
-      copperFlushFive: { raw: null, value: null, comparator: null, parseError: null },
-      summary: {
-        leadRisk: "high",
-        overall: "alert",
-        filterRecommendation: "strongly_recommended",
-      },
-      healthSummary: {
-        status: "alert",
-        reasons: ["Lead is at or above the EPA 0.015 mg/L action level."],
-      },
-    },
-  ],
-  meta: {
-    zip: "11356",
-    count: 1,
-    total: 1,
-    page: 1,
-    pageSize: 1,
-    totalPages: 1,
-    sortBy: "sampleDate",
-    sortDir: "desc",
-    nearestMatches: [],
-  },
-  nearbySummary: {
-    sampleCount: 1,
-    nearestDistanceMiles: null,
-    overall: "alert",
+const sampleRecord = {
+  id: "sample-77050",
+  sampleNumber: "77050",
+  sampleDate: "2015-01-03",
+  sampleTime: null,
+  sampledAt: "2015-01-03T11:32:00",
+  dateReceived: "2015-01-04",
+  zipCode: "11356",
+  borough: "Queens",
+  location: "Queens • 11356",
+  latitude: null,
+  longitude: null,
+  leadFirstDraw: { raw: "0.019", value: 0.019, comparator: "eq", parseError: null },
+  leadFlushOneToTwo: { raw: "0.004", value: 0.004, comparator: "eq", parseError: null },
+  leadFlushFive: { raw: null, value: null, comparator: null, parseError: null },
+  copperFirstDraw: { raw: "0.313", value: 0.313, comparator: "eq", parseError: null },
+  copperFlushOneToTwo: { raw: "0.043", value: 0.043, comparator: "eq", parseError: null },
+  copperFlushFive: { raw: null, value: null, comparator: null, parseError: null },
+  summary: {
     leadRisk: "high",
+    overall: "alert",
     filterRecommendation: "strongly_recommended",
-    averageLeadFirstDrawMgL: 0.019,
-    leadRiskDistribution: {
-      low: 0,
-      elevated: 0,
-      high: 1,
-      unknown: 0,
-    },
+  },
+  healthSummary: {
+    status: "alert",
+    reasons: ["Lead is at or above the EPA 0.015 mg/L action level."],
   },
 };
 
@@ -87,10 +58,10 @@ test("renders initial idle state", async () => {
 
   try {
     const view = render(<TapWaterPageClient controller={makeController()} />);
-    assert.ok(view.getByText("NYC Tap Water Lookup"));
+    assert.ok(view.getByText("NYC Home Lead Results by ZIP"));
     assert.ok(
       view.getByText(
-        "Enter a ZIP code to see lead results and a filter recommendation.",
+        "Enter a ZIP code to see aggregated lead results and distribution across homes.",
       ),
     );
   } finally {
@@ -138,7 +109,7 @@ test("shows loading state while request is pending", async () => {
   }
 });
 
-test("renders nearby summary and sample list on success", async () => {
+test("renders lead overview, distribution, and recent tests on success", async () => {
   const teardown = setupDomEnvironment();
 
   try {
@@ -147,22 +118,44 @@ test("renders nearby summary and sample list on success", async () => {
         controller={makeController({
           query: "11356",
           phase: "success",
-          data: successPayload.data,
-          meta: successPayload.meta,
-          nearbySummary: successPayload.nearbySummary,
+          data: [sampleRecord],
+          recentTests: [sampleRecord],
+          meta: {
+            zip: "11356",
+            count: 1,
+            total: 1,
+            page: 1,
+            pageSize: 1,
+            totalPages: 1,
+            sortBy: "sampleDate",
+            sortDir: "desc",
+            nearestMatches: [],
+          },
+          leadSummary: {
+            sampleCount: 1,
+            mostRecentTestDate: "2015-01-03",
+            medianFirstDraw: 0.019,
+            maxFirstDraw: 0.019,
+            percentDetected: 100,
+            percentElevated: 100,
+          },
+          distribution: {
+            notDetected: { count: 0, percent: 0 },
+            detected: { count: 0, percent: 0 },
+            elevated: { count: 1, percent: 100 },
+          },
+          notes: "Lead results vary by home and plumbing conditions.",
         })}
       />,
     );
 
-    assert.ok(view.getByText("Nearby Summary"));
-    assert.ok(view.getByText("Nearby Samples"));
-    assert.ok(view.getByText("Overall: Alert"));
+    assert.ok(view.getByText("Lead Overview"));
+    assert.ok(view.getByText("Distribution"));
+    assert.ok(view.getByText("Recent Tests"));
+    assert.ok(view.getByText("Lead results vary by home and plumbing conditions."));
+    assert.ok(view.getByText("Percent Detected (> 0)"));
+    assert.ok(view.getAllByText("100.0%").length >= 1);
     assert.ok(view.getByText("ZIP 11356"));
-    assert.ok(view.getAllByText("Filter Strongly Recommended").length >= 1);
-    assert.ok(view.getByText("Should Buy Filter"));
-    assert.ok(view.getByText("Yes"));
-    assert.ok(view.getAllByText("0.019 mg/L").length >= 1);
-    assert.ok(view.getByText("100%"));
   } finally {
     cleanup();
     teardown();
@@ -179,6 +172,7 @@ test("renders empty state when no samples are returned", async () => {
           query: "11356",
           phase: "empty",
           data: [],
+          recentTests: [],
           meta: {
             zip: "11356",
             count: 0,
@@ -190,20 +184,20 @@ test("renders empty state when no samples are returned", async () => {
             sortDir: "desc",
             nearestMatches: [],
           },
-          nearbySummary: {
+          leadSummary: {
             sampleCount: 0,
-            nearestDistanceMiles: null,
-            overall: "unknown",
-            leadRisk: "unknown",
-            filterRecommendation: "unknown",
-            averageLeadFirstDrawMgL: null,
-            leadRiskDistribution: {
-              low: 0,
-              elevated: 0,
-              high: 0,
-              unknown: 0,
-            },
+            mostRecentTestDate: null,
+            medianFirstDraw: null,
+            maxFirstDraw: null,
+            percentDetected: 0,
+            percentElevated: 0,
           },
+          distribution: {
+            notDetected: { count: 0, percent: 0 },
+            detected: { count: 0, percent: 0 },
+            elevated: { count: 0, percent: 0 },
+          },
+          notes: "Lead results vary by home and plumbing conditions.",
         })}
       />,
     );

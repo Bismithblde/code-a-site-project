@@ -126,6 +126,26 @@ export type NearbySummary = {
   };
 };
 
+export type LeadSummary = {
+  sampleCount: number;
+  mostRecentTestDate: string | null;
+  medianFirstDraw: number | null;
+  maxFirstDraw: number | null;
+  percentDetected: number;
+  percentElevated: number;
+};
+
+export type LeadDistributionBucket = {
+  count: number;
+  percent: number;
+};
+
+export type LeadDistribution = {
+  notDetected: LeadDistributionBucket;
+  detected: LeadDistributionBucket;
+  elevated: LeadDistributionBucket;
+};
+
 export type NearbyWaterSample = WaterSample & {
   distanceMiles?: number;
 };
@@ -145,6 +165,10 @@ export type NearbyQueryResult = {
     nearestMatches: NearestMatch[];
   };
   nearbySummary: NearbySummary;
+  leadSummary: LeadSummary;
+  distribution: LeadDistribution;
+  recentTests: NearbyWaterSample[];
+  notes: string;
 };
 
 export type HealthSummary = {

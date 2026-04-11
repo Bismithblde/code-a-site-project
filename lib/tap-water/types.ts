@@ -83,7 +83,22 @@ export type TapWaterMeta = {
 export type TapWaterSearchResponse = {
   data: TapWaterSample[];
   meta: TapWaterMeta;
-  nearbySummary: TapWaterNearbySummary;
+  nearbySummary?: TapWaterNearbySummary;
+  leadSummary?: {
+    sampleCount: number;
+    mostRecentTestDate: string | null;
+    medianFirstDraw: number | null;
+    maxFirstDraw: number | null;
+    percentDetected: number;
+    percentElevated: number;
+  };
+  distribution?: {
+    notDetected: { count: number; percent: number };
+    detected: { count: number; percent: number };
+    elevated: { count: number; percent: number };
+  };
+  recentTests?: TapWaterSample[];
+  notes?: string;
 };
 
 export type TapWaterSearchMode = "zip" | "location";
