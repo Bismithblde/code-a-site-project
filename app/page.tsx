@@ -109,7 +109,7 @@ export default async function HomePage() {
           <Link href="/minerals/calcium" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <Bone className="size-7 text-ocean-surface mb-4" />
-              <p className="text-sm text-muted-foreground mb-1">Weak bones? Stiff joints?</p>
+              <p className="text-lg sm:text-xl font-semibold text-foreground mb-2">Weak bones? Stiff joints?</p>
               <h3 className="text-xl font-bold mb-2 group-hover:text-ocean-surface transition-colors">Calcium</h3>
               <p className="text-sm text-muted-foreground leading-relaxed mb-4">
                 Strengthens bones and teeth, supports nerve signaling and muscle contraction.
@@ -124,7 +124,7 @@ export default async function HomePage() {
           <Link href="/minerals/magnesium" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <Brain className="size-7 text-ocean-surface mb-4" />
-              <p className="text-sm text-muted-foreground mb-1">Poor sleep? Low energy?</p>
+              <p className="text-lg sm:text-xl font-semibold text-foreground mb-2">Poor sleep? Low energy?</p>
               <h3 className="text-xl font-bold mb-2 group-hover:text-ocean-surface transition-colors">Magnesium</h3>
               <p className="text-sm text-muted-foreground leading-relaxed mb-4">
                 Regulates 300+ enzyme reactions. Improves sleep quality, reduces muscle cramps, boosts energy production.
@@ -139,7 +139,7 @@ export default async function HomePage() {
           <Link href="/minerals/sodium" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <Heart className="size-7 text-ocean-surface mb-4" />
-              <p className="text-sm text-muted-foreground mb-1">Watching blood pressure?</p>
+              <p className="text-lg sm:text-xl font-semibold text-foreground mb-2">Watching blood pressure?</p>
               <h3 className="text-xl font-bold mb-2 group-hover:text-ocean-surface transition-colors">Sodium</h3>
               <p className="text-sm text-muted-foreground leading-relaxed mb-4">
                 Essential for fluid balance and nerve function — but too much raises blood pressure. Some waters have 20x more than others.
@@ -154,7 +154,7 @@ export default async function HomePage() {
           <Link href="/minerals/bicarbonate" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <Zap className="size-7 text-ocean-surface mb-4" />
-              <p className="text-sm text-muted-foreground mb-1">Post-workout fatigue?</p>
+              <p className="text-lg sm:text-xl font-semibold text-foreground mb-2">Post-workout fatigue?</p>
               <h3 className="text-xl font-bold mb-2 group-hover:text-ocean-surface transition-colors">Bicarbonate</h3>
               <p className="text-sm text-muted-foreground leading-relaxed mb-4">
                 Neutralizes lactic acid, aids digestion, and buffers your body&apos;s pH. Athletes drink bicarbonate-rich water for faster recovery.
@@ -169,7 +169,7 @@ export default async function HomePage() {
           <Link href="/minerals/silica" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <Droplets className="size-7 text-ocean-surface mb-4" />
-              <p className="text-sm text-muted-foreground mb-1">Dull skin? Brittle nails?</p>
+              <p className="text-lg sm:text-xl font-semibold text-foreground mb-2">Dull skin? Brittle nails?</p>
               <h3 className="text-xl font-bold mb-2 group-hover:text-ocean-surface transition-colors">Silica</h3>
               <p className="text-sm text-muted-foreground leading-relaxed mb-4">
                 Promotes skin elasticity, hair thickness, and nail strength. Fiji water is famous for its high silica — 93 mg/L.
@@ -184,7 +184,7 @@ export default async function HomePage() {
           <Link href="/minerals/potassium" className="group">
             <div className="glass-card p-6 h-full hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
               <Shield className="size-7 text-ocean-surface mb-4" />
-              <p className="text-sm text-muted-foreground mb-1">Muscle cramps? Irregular heartbeat?</p>
+              <p className="text-lg sm:text-xl font-semibold text-foreground mb-2">Muscle cramps? Irregular heartbeat?</p>
               <h3 className="text-xl font-bold mb-2 group-hover:text-ocean-surface transition-colors">Potassium</h3>
               <p className="text-sm text-muted-foreground leading-relaxed mb-4">
                 Balances sodium, regulates heart rhythm, and prevents muscle cramps. Most people don&apos;t get enough daily potassium.
