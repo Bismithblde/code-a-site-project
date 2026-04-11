@@ -212,22 +212,16 @@ export function OceanHeroSection() {
             Find Your Perfect
           </h1>
 
-          {/* Title line 2 — "Water" with frosted glass texture clipped to text */}
+          {/* Title line 2 — "Water" glass text */}
           <span
             className="relative text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black tracking-tight text-center block"
             style={{
               fontFamily: "var(--font-nunito), Nunito, system-ui, sans-serif",
               opacity: waterOpacity,
               transform: `scale(${waterScale})`,
-              /* Frosted glass fill — gradient that mimics blurred light, clipped to text */
-              background: "linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(200,225,255,0.15) 30%, rgba(255,255,255,0.10) 60%, rgba(220,240,255,0.25) 100%)",
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              color: "transparent",
-              /* White outline for the glass edge */
-              WebkitTextStroke: "1.5px rgba(255, 255, 255, 0.45)",
-              /* Subtle outer glow */
-              filter: "drop-shadow(0 0 20px rgba(255,255,255,0.08)) drop-shadow(0 2px 4px rgba(0,0,0,0.15))",
+              color: "rgba(255, 255, 255, 0.1)",
+              WebkitTextStroke: "1px rgba(255, 255, 255, 0.4)",
+              textShadow: "0 1px 0 rgba(255,255,255,0.15), 0 -1px 0 rgba(0,0,0,0.1), 0 0 8px rgba(255,255,255,0.05)",
             }}
           >
             Water
