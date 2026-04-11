@@ -1,11 +1,18 @@
 import type { Metadata } from "next";
-import { Playfair_Display } from "next/font/google";
+import { Playfair_Display, Nunito } from "next/font/google";
 import "./globals.css";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
   weight: ["700", "800", "900"],
   variable: "--font-playfair",
+  display: "swap",
+});
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  weight: ["800", "900"],
+  variable: "--font-nunito",
   display: "swap",
 });
 import { Header } from "@/components/Header";
@@ -54,7 +61,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`h-full antialiased ${playfair.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`h-full antialiased ${playfair.variable} ${nunito.variable}`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{

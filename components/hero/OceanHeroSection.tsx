@@ -207,17 +207,17 @@ export function OceanHeroSection() {
             Find Your Perfect
           </h1>
 
-          {/* Title line 2 — "Water" with gradient */}
+          {/* Title line 2 — "Water" with bubble effect */}
           <span
-            className="text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold tracking-tight text-center drop-shadow-[0_4px_30px_rgba(0,0,0,0.5)]"
+            className="text-7xl sm:text-8xl md:text-9xl lg:text-[10rem] font-black tracking-tight text-center"
             style={{
-              fontFamily: "var(--font-playfair), Georgia, serif",
+              fontFamily: "var(--font-nunito), 'Nunito', system-ui, sans-serif",
               opacity: waterOpacity,
               transform: `translateY(${(1 - waterOpacity) * 30}px) scale(${0.9 + waterOpacity * 0.1})`,
-              backgroundImage: "linear-gradient(135deg, #7dd3fc, #38bdf8, #0ea5e9, #0284c7)",
-              WebkitBackgroundClip: "text",
-              backgroundClip: "text",
-              color: "transparent",
+              color: "rgba(255, 255, 255, 0.15)",
+              WebkitTextStroke: "2px rgba(255, 255, 255, 0.85)",
+              textShadow: "0 0 30px rgba(255, 255, 255, 0.15), 0 0 60px rgba(56, 189, 248, 0.1), inset 0 0 20px rgba(255, 255, 255, 0.1)",
+              letterSpacing: "0.02em",
             }}
           >
             Water
