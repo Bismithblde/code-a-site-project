@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LoginForm } from "@/components/auth/LoginForm";
 import Link from "next/link";
-import { OceanLoginBackground } from "@/components/auth/OceanLoginBackground";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Sign In — MineralWater",
@@ -11,9 +11,18 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <div className="relative min-h-screen flex">
-      {/* ── Left: Ocean immersion panel ── */}
+      {/* ── Left: Image panel ── */}
       <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden">
-        <OceanLoginBackground />
+        {/* Background image */}
+        <Image
+          src="/images/login-bg.jpg"
+          alt="Crystal clear water"
+          fill
+          className="object-cover"
+          priority
+        />
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/50" />
 
         {/* Content over the ocean */}
         <div className="relative z-10 flex flex-col justify-between p-12 xl:p-16 w-full">
